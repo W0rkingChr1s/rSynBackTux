@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - "v*"
+  release:
+    types: [published]
+  workflow_dispatch:
 
 jobs:
   changelog:
@@ -14,14 +17,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # vollständige History für sinnvollen Changelog
+          fetch-depth: 0
 
       - name: Generate CHANGELOG.md
         id: changelog
         uses: metcalfc/changelog-generator@v4.0.0
         with:
           myToken: ${{ secrets.GITHUB_TOKEN }}
-          futureRelease: ${{ github.ref_name }}
+          head-ref: ${{ github.ref_name }}
+          reverse: false
 
       - name: Write CHANGELOG.md
         run: |
