@@ -4,11 +4,11 @@
     <img src="res/Logo.png" alt="rSynBackTux Logo" width="260"/>
 </p>
 
-![License: MIT](https://img.shields.io/github/license/W0rkingChr1s/rSynBackTux)
-![Last Commit](https://img.shields.io/github/last-commit/W0rkingChr1s/rSynBackTux)
-![Repo Size](https://img.shields.io/github/repo-size/W0rkingChr1s/rSynBackTux)
-![Stars](https://img.shields.io/github/stars/W0rkingChr1s/rSynBackTux?style=social)
-![Issues](https://img.shields.io/github/issues/W0rkingChr1s/rSynBackTux)
+![License: MIT](https://img.shields.io/github/license/W0rkingChr1s/rSynBackTuX)
+![Last Commit](https://img.shields.io/github/last-commit/W0rkingChr1s/rSynBackTuX)
+![Repo Size](https://img.shields.io/github/repo-size/W0rkingChr1s/rSynBackTuX)
+![Stars](https://img.shields.io/github/stars/W0rkingChr1s/rSynBackTuX?style=social)
+![Issues](https://img.shields.io/github/issues/W0rkingChr1s/rSynBackTuX)
 ![Shell Script](https://img.shields.io/badge/language-shell-blue)
 
 rSynBackTux ermöglicht es, **beliebige Linux-Server automatisiert und zuverlässig auf eine Synology NAS zu sichern** – ohne zusätzliche Software oder Agenten.  
