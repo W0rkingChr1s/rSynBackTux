@@ -30,7 +30,7 @@ GitHub:
 **<https://github.com/W0rkingChr1s/rSynBackTux>**
 
 Direkter Installer (Raw-Datei):  
-**<https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/install-syno-backup.sh>**
+**<https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/src/install-syno-backup.sh>**
 
 ---
 
@@ -85,13 +85,13 @@ Getestet mit u. a.: Ubuntu, Debian, Rocky, AlmaLinux, RHEL, Fedora, openSUSE, Ar
 Mit `curl`:
 
 ```bash
-curl -s https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/install-syno-backup.sh | sudo bash
+curl -s https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/src/install-syno-backup.sh | sudo bash
 ```
 
 Mit `wget`:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/install-syno-backup.sh | sudo bash
+wget -qO- https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/src/install-syno-backup.sh | sudo bash
 ```
 
 ### 2. Der Installer fragt interaktiv
