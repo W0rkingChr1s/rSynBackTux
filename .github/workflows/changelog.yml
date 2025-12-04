@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:
@@ -17,24 +15,56 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # komplette History für git log
 
-      - name: Generate CHANGELOG.md
-        id: changelog
-        uses: metcalfc/changelog-generator@v4.0.0
-        with:
-          myToken: ${{ secrets.GITHUB_TOKEN }}
-          head-ref: ${{ github.ref_name }}
-          reverse: false
-
-      - name: Write CHANGELOG.md
+      - name: Generate changelog section from git log
+        id: gen
         run: |
-          echo "${{ steps.changelog.outputs.changelog }}" > CHANGELOG.md
+          set -euo pipefail
+
+          # Aktueller Tag (z.B. refs/tags/v1.0.2 -> v1.0.2)
+          REF_NAME="${GITHUB_REF##*/}"
+          TAG="${REF_NAME}"
+
+          echo "Current tag: ${TAG}"
+
+          # Vorherigen Tag ermitteln (kann leer sein, wenn erster Release)
+          PREV_TAG="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+
+          if [ -n "${PREV_TAG}" ]; then
+            echo "Previous tag: ${PREV_TAG}"
+            RANGE="${PREV_TAG}..${TAG}"
+          else
+            echo "No previous tag found. Using full history up to ${TAG}."
+            RANGE="${TAG}"
+          fi
+
+          DATE="$(date +%F)"
+
+          {
+            echo "# Changelog"
+            echo
+            echo "## ${TAG} - ${DATE}"
+            echo
+
+            # Commits als Liste
+            git log --pretty='- %s (%h)' ${RANGE}
+
+            echo
+          } > NEW_CHANGELOG.md
+
+          # Alten Changelog anhängen, falls vorhanden
+          if [ -f CHANGELOG.md ]; then
+            echo "Appending old CHANGELOG.md"
+            cat CHANGELOG.md >> NEW_CHANGELOG.md
+          fi
+
+          mv NEW_CHANGELOG.md CHANGELOG.md
 
       - name: Commit CHANGELOG.md
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Update CHANGELOG.md for ${{ github.ref_name }}"
+          commit_message: "Update CHANGELOG.md for ${GITHUB_REF##*/}"
           file_pattern: CHANGELOG.md
           commit_user_name: "github-actions[bot]"
           commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
