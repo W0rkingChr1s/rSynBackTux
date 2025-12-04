@@ -2,8 +2,8 @@ name: Generate Changelog
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -18,25 +18,24 @@ jobs:
           fetch-depth: 0  # komplette History für git log
 
       - name: Generate changelog section from git log
-        id: gen
         run: |
           set -euo pipefail
 
-          # Aktueller Tag (z.B. refs/tags/v1.0.2 -> v1.0.2)
-          REF_NAME="${GITHUB_REF##*/}"
-          TAG="${REF_NAME}"
+          # Version aus VERSION-Datei lesen (falls vorhanden)
+          VERSION="$(cat VERSION 2>/dev/null || echo 'Unreleased')"
+          TAG_HEADER="v${VERSION}"
 
-          echo "Current tag: ${TAG}"
+          echo "Current VERSION: ${VERSION}"
 
-          # Vorherigen Tag ermitteln (kann leer sein, wenn erster Release)
-          PREV_TAG="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          # Letztes Tag suchen (letztes Release)
+          LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
 
-          if [ -n "${PREV_TAG}" ]; then
-            echo "Previous tag: ${PREV_TAG}"
-            RANGE="${PREV_TAG}..${TAG}"
+          if [ -n "${LAST_TAG}" ]; then
+            echo "Last tag: ${LAST_TAG}"
+            RANGE="${LAST_TAG}..HEAD"
           else
-            echo "No previous tag found. Using full history up to ${TAG}."
-            RANGE="${TAG}"
+            echo "No previous tag found. Using full history."
+            RANGE="HEAD"
           fi
 
           DATE="$(date +%F)"
@@ -44,16 +43,12 @@ jobs:
           {
             echo "# Changelog"
             echo
-            echo "## ${TAG} - ${DATE}"
+            echo "## ${TAG_HEADER} - ${DATE}"
             echo
-
-            # Commits als Liste
             git log --pretty='- %s (%h)' ${RANGE}
-
             echo
           } > NEW_CHANGELOG.md
 
-          # Alten Changelog anhängen, falls vorhanden
           if [ -f CHANGELOG.md ]; then
             echo "Appending old CHANGELOG.md"
             cat CHANGELOG.md >> NEW_CHANGELOG.md
@@ -64,7 +59,7 @@ jobs:
       - name: Commit CHANGELOG.md
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Update CHANGELOG.md for ${GITHUB_REF##*/}"
+          commit_message: "Update CHANGELOG.md for v${{ github.sha }}"
           file_pattern: CHANGELOG.md
           branch: main
           commit_user_name: "github-actions[bot]"
