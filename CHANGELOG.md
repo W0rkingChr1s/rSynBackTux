@@ -2,6 +2,13 @@
 
 ## v1.0.4 - 2025-12-04
 
+- Add relesase helper script (57153ce)
+- Update CHANGELOG.md for v59cdc22be8aca1e3284b0b0a2a9472dcb5a1a05d (f4b5bd2)
+
+# Changelog
+
+## v1.0.4 - 2025-12-04
+
 - Bump version to 1.0.4 (59cdc22)
 - Update CHANGELOG.md for v843eb603fa983606db69bd06100cb067353827bb (1c4e896)
 - Aktualisiere Workflow zur Generierung des CHANGELOG.md, um nur bei Pushes auf den main-Branch zu triggern und verbessere die Tag-Verarbeitung. (843eb60)
