@@ -1,10 +1,12 @@
 # rSynBackTux – Synology Remote Backup for Linux Servers
 
 <p align="center">
-    <img src="res/Logo.png" alt="rSynBackTux Logo" width="260"/>
+    <img src="res/banner.png" alt="rSynBackTux Banner" width="100%"/>
 </p>
 
-![License: MIT](https://img.shields.io/github/license/W0rkingChr1s/rSynBackTuX)
+![Latest Release](https://img.shields.io/github/v/release/W0rkingChr1s/rSynBackTux)
+![Downloads](https://img.shields.io/github/downloads/W0rkingChr1s/rSynBackTux/total)
+![GitHub License](https://img.shields.io/github/license/W0rkingChr1s/rSynBackTux)
 ![Last Commit](https://img.shields.io/github/last-commit/W0rkingChr1s/rSynBackTuX)
 ![Repo Size](https://img.shields.io/github/repo-size/W0rkingChr1s/rSynBackTuX)
 ![Stars](https://img.shields.io/github/stars/W0rkingChr1s/rSynBackTuX?style=social)
