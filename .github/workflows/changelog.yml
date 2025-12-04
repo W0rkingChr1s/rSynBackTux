@@ -66,5 +66,6 @@ jobs:
         with:
           commit_message: "Update CHANGELOG.md for ${GITHUB_REF##*/}"
           file_pattern: CHANGELOG.md
+          branch: main
           commit_user_name: "github-actions[bot]"
           commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
