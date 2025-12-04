@@ -10,6 +10,11 @@ if [[ "${1-}" == "--dry-run" ]]; then
 fi
 
 require_root() {
+  # Im DRY RUN niemals root verlangen
+  if [[ "${DRY_RUN}" == true ]]; then
+    return
+  fi
+
   if [[ $EUID -ne 0 ]]; then
     echo "Bitte als root ausführen (z. B. via sudo)." >&2
     exit 1
