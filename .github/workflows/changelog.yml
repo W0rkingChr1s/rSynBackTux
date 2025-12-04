@@ -1,0 +1,36 @@
+name: Generate Changelog
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  changelog:
+    name: Update CHANGELOG.md
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # vollständige History für sinnvollen Changelog
+
+      - name: Generate CHANGELOG.md
+        id: changelog
+        uses: metcalfc/changelog-generator@v4.0.0
+        with:
+          myToken: ${{ secrets.GITHUB_TOKEN }}
+          futureRelease: ${{ github.ref_name }}
+
+      - name: Write CHANGELOG.md
+        run: |
+          echo "${{ steps.changelog.outputs.changelog }}" > CHANGELOG.md
+
+      - name: Commit CHANGELOG.md
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update CHANGELOG.md for ${{ github.ref_name }}"
+          file_pattern: CHANGELOG.md
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"

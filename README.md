@@ -49,6 +49,12 @@ Direkter Installer (Raw-Datei):
 
 ---
 
+## Changelog
+
+Siehe [CHANGELOG.md](CHANGELOG.md) für eine Übersicht der Änderungen pro Version.
+
+---
+
 ## Funktionsweise
 
 1. Auf der Synology wird ein **rsync-Zielmodul (`NetBackup`)** eingerichtet.
