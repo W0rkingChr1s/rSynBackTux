@@ -1,17 +1,32 @@
-# Synology Remote Backup for Linux Servers (via rsync + Cron)
+# rSynBackTux – Synology Remote Backup for Linux Servers
 
-Dieses Projekt ermöglicht es, **beliebige Linux-Server automatisiert und zuverlässig auf eine Synology NAS zu sichern** – ohne zusätzliche Software oder Agenten.  
+![License: MIT](https://img.shields.io/github/license/W0rkingChr1s/rSynBackTux)
+![Last Commit](https://img.shields.io/github/last-commit/W0rkingChr1s/rSynBackTux)
+![Repo Size](https://img.shields.io/github/repo-size/W0rkingChr1s/rSynBackTux)
+![Stars](https://img.shields.io/github/stars/W0rkingChr1s/rSynBackTux?style=social)
+![Issues](https://img.shields.io/github/issues/W0rkingChr1s/rSynBackTux)
+![Shell Script](https://img.shields.io/badge/language-shell-blue)
+
+rSynBackTux ermöglicht es, **beliebige Linux-Server automatisiert und zuverlässig auf eine Synology NAS zu sichern** – ohne zusätzliche Software oder Agenten.  
 Die Sicherung erfolgt per **rsync-Daemon** auf der Synology und einem automatisch installierten Backup-Script auf den Linux-Servern.
 
 Der Installer richtet alles automatisch ein:
 
-- Passwortdatei (für rsync)
-- Backup-Script unter `/usr/local/sbin/backup-to-synology.sh`
-- Logfile unter `/var/log/backup-to-synology.log`
-- (optional) Cronjob für tägliche Backups
+- Passwortdatei (für rsync)  
+- Backup-Script unter `/usr/local/sbin/backup-to-synology.sh`  
+- Logfile unter `/var/log/backup-to-synology.log`  
+- (optional) Cronjob für tägliche Backups  
 - Hostname-basierte Ordnerstruktur auf der Synology (`NetBackup/<SERVERNAME>/`)
 
-Damit eignet sich das Projekt ideal für heterogene Umgebungen mit mehreren Linux-Systemen.
+---
+
+## Repository
+
+GitHub:  
+**<https://github.com/W0rkingChr1s/rSynBackTux>**
+
+Direkter Installer (Raw-Datei):  
+**<https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/install-syno-backup.sh>**
 
 ---
 
@@ -66,16 +81,16 @@ Getestet mit u. a.: Ubuntu, Debian, Rocky, AlmaLinux, RHEL, Fedora, openSUSE, Ar
 Mit `curl`:
 
 ```bash
-curl -s https://raw.githubusercontent.com/<USER>/<REPO>/main/install-syno-backup.sh | sudo bash
+curl -s https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/install-syno-backup.sh | sudo bash
 ```
 
 Mit `wget`:
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/<USER>/<REPO>/main/install-syno-backup.sh | sudo bash
+wget -qO- https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/install-syno-backup.sh | sudo bash
 ```
 
-### 2. Der Installer fragt interaktiv:
+### 2. Der Installer fragt interaktiv
 
 - Synology-Host / IP
 - rsync-Modulname (Standard: `NetBackup`)
@@ -94,7 +109,7 @@ Nach der Installation liegt das Script unter:
 /usr/local/sbin/backup-to-synology.sh
 ```
 
-### Das Script:
+### Das Script
 
 - sichert `/` inkl. aller Unterverzeichnisse
 - schließt Pseudo-Dateisysteme aus:

@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck on shell scripts
+        run: |
+          # Alle .sh-Dateien + Skripte ohne Endung im repo-root prüfen
+          find . -type f \( -name "*.sh" -o -perm -111 \) -print0 \
+            | xargs -0 -r shellcheck

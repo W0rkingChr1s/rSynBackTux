@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up variables
+        id: vars
+        run: |
+          TAG_NAME="${GITHUB_REF##*/}"
+          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "release_name=rSynBackTux ${TAG_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release archive
+        run: |
+          mkdir -p dist
+          # Installer + README als „Release-Paket“
+          cp install-syno-backup.sh README.md dist/
+          cd dist
+          tar czf rSynBackTux.tar.gz install-syno-backup.sh README.md
+          ls -l
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.vars.outputs.tag_name }}
+          release_name: ${{ steps.vars.outputs.release_name }}
+          draft: false
+          prerelease: false
+
+      - name: Upload installer script as asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/install-syno-backup.sh
+          asset_name: install-syno-backup.sh
+          asset_content_type: text/x-shellscript
+
+      - name: Upload tarball as asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/rSynBackTux.tar.gz
+          asset_name: rSynBackTux.tar.gz
+          asset_content_type: application/gzip
