@@ -22,6 +22,32 @@ jobs:
 
       - name: Run ShellCheck on shell scripts
         run: |
-          # Alle .sh-Dateien + Skripte ohne Endung im repo-root prüfen
-          find . -type f \( -name "*.sh" -o -perm -111 \) -print0 \
+          find src -type f \( -name "*.sh" -o -perm -111 \) -print0 \
             | xargs -0 -r shellcheck
+
+  installer-test:
+    name: Installer Dry-Run Test
+    runs-on: ubuntu-latest
+    needs: shellcheck
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Syntax check installer
+        run: |
+          bash -n src/install-syno-backup.sh
+
+      - name: Run installer in dry-run mode
+        run: |
+          chmod +x src/install-syno-backup.sh
+          # Simulierte Eingaben: Host, Modul, User, Subdir, Passwort, Testlauf?, Cron?
+          src/install-syno-backup.sh --dry-run << 'EOF'
+          192.168.178.5
+          NetBackup
+          backup
+          ci-test-server
+          ci-test-password
+          n
+          n
+          EOF
