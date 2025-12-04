@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.0.5 - 2025-12-04
+
+- Merge branch 'main' of https://github.com/W0rkingChr1s/rSynBackTux (00eadb5)
+- Release 1.0.5 (beecf7d)
+- Update CHANGELOG.md for v57153cea91d44b2d245bf759f42f926ae93207eb (32df557)
+- Add relesase helper script (57153ce)
+- Update CHANGELOG.md for v59cdc22be8aca1e3284b0b0a2a9472dcb5a1a05d (f4b5bd2)
+
+# Changelog
+
 ## v1.0.4 - 2025-12-04
 
 - Add relesase helper script (57153ce)
