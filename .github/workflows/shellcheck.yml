@@ -1,0 +1,39 @@
+name: ShellCheck
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**.sh"
+      - ".github/workflows/shellcheck.yml"
+  pull_request:
+    paths:
+      - "**.sh"
+      - ".github/workflows/shellcheck.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: Run ShellCheck on shell scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Run ShellCheck
+        run: |
+          echo "Running ShellCheck on all .sh files..."
+          if ! find . -type f -name "*.sh" -print0 | xargs -0 -r shellcheck -x; then
+            echo "ShellCheck found issues."
+            exit 1
+          fi

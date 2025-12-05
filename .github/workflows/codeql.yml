@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
   schedule:
-    - cron: "0 3 * * 6" # einmal pro Woche
+    - cron: "0 3 * * 6"
   workflow_dispatch:
 
 permissions:
@@ -21,11 +21,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
+        with:
+          disable-default-queries: true
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
