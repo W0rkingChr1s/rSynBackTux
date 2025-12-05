@@ -2,43 +2,12 @@
 
 ## v1.1.0 - 2025-12-05
 
+- Verbessere die Logik zur Versionsbestimmung und aktualisiere die Generierung des CHANGELOG.md, um Merge-Spam zu filtern und die Struktur zu optimieren. (3883d64)
 - Füge .gitattributes und .gitignore hinzu; aktualisiere README.md (f82f5bd)
-- Update CHANGELOG.md for v1efd35fdbb6763b62fa68e29f936a5c61511cb33 (dc79b9e)
 - Füge "Buy Me A Coffee"-Link zur README.md hinzu (1efd35f)
-- Update CHANGELOG.md for v063c6bf6847c29777ee9d768bb52da8284e8eb7c (20d39a5)
-- Merge branch 'main' of https://github.com/W0rkingChr1s/rSynBackTux (063c6bf)
 - Aktualisiere README.md mit korrektem GitHub-Link und füge einen persönlichen Hinweis hinzu; entferne test.txt (ccb53a0)
-- Update CHANGELOG.md for v203b181f935312f02d7f40d9dce27e259df9373d (d85387c)
 - Aktualisiere Beispielversionsnummer und Fehlermeldungen im Release-Skript (203b181)
 
-# Changelog
-
-## v1.1.0 - 2025-12-05
-
-- Füge "Buy Me A Coffee"-Link zur README.md hinzu (1efd35f)
-- Update CHANGELOG.md for v063c6bf6847c29777ee9d768bb52da8284e8eb7c (20d39a5)
-- Merge branch 'main' of <https://github.com/W0rkingChr1s/rSynBackTux> (063c6bf)
-- Aktualisiere README.md mit korrektem GitHub-Link und füge einen persönlichen Hinweis hinzu; entferne test.txt (ccb53a0)
-- Update CHANGELOG.md for v203b181f935312f02d7f40d9dce27e259df9373d (d85387c)
-- Aktualisiere Beispielversionsnummer und Fehlermeldungen im Release-Skript (203b181)
-- Merge branch 'main' of <https://github.com/W0rkingChr1s/rSynBackTux> (063c6bf)
-- Aktualisiere README.md mit korrektem GitHub-Link und füge einen persönlichen Hinweis hinzu; entferne test.txt (ccb53a0)
-- Update CHANGELOG.md for v203b181f935312f02d7f40d9dce27e259df9373d (d85387c)
-- Aktualisiere Beispielversionsnummer und Fehlermeldungen im Release-Skript (203b181)
-- Merge branch 'main' of <https://github.com/W0rkingChr1s/rSynBackTux> (2ba7ad4)
-- Release 1.1.0 (127bdd7)
-- Update CHANGELOG.md for vdc7b4441f2fa5a9632e8a60e9fdc172330938154 (7381c8f)
-- Merge branch 'main' of <https://github.com/W0rkingChr1s/rSynBackTux> (dc7b444)
-- Relax release script: ignore untracked files (32c351f)
-- Update CHANGELOG.md for v5b28891c7d4eafd8f8c2367294a7470867462615 (c648f1a)
-- Merge branch 'main' of <https://github.com/W0rkingChr1s/rSynBackTux> (5b28891)
-- Füge leere Testdatei hinzu (75581ee)
-- Update CHANGELOG.md for v00eadb5204e7e791536bb1d29de734d742fbe4f8 (c3af40b)
-- Merge branch 'main' of <https://github.com/W0rkingChr1s/rSynBackTux> (00eadb5)
-- Release 1.0.5 (beecf7d)
-- Update CHANGELOG.md for v57153cea91d44b2d245bf759f42f926ae93207eb (32df557)
-- Add relesase helper script (57153ce)
-- Update CHANGELOG.md for v59cdc22be8aca1e3284b0b0a2a9472dcb5a1a05d (f4b5bd2)
 
 ## v1.0.5 - 2025-12-05
 
