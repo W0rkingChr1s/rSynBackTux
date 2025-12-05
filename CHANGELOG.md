@@ -2,6 +2,19 @@
 
 ## v1.1.0 - 2025-12-05
 
+- Füge .gitattributes und .gitignore hinzu; aktualisiere README.md (f82f5bd)
+- Update CHANGELOG.md for v1efd35fdbb6763b62fa68e29f936a5c61511cb33 (dc79b9e)
+- Füge "Buy Me A Coffee"-Link zur README.md hinzu (1efd35f)
+- Update CHANGELOG.md for v063c6bf6847c29777ee9d768bb52da8284e8eb7c (20d39a5)
+- Merge branch 'main' of https://github.com/W0rkingChr1s/rSynBackTux (063c6bf)
+- Aktualisiere README.md mit korrektem GitHub-Link und füge einen persönlichen Hinweis hinzu; entferne test.txt (ccb53a0)
+- Update CHANGELOG.md for v203b181f935312f02d7f40d9dce27e259df9373d (d85387c)
+- Aktualisiere Beispielversionsnummer und Fehlermeldungen im Release-Skript (203b181)
+
+# Changelog
+
+## v1.1.0 - 2025-12-05
+
 - Füge "Buy Me A Coffee"-Link zur README.md hinzu (1efd35f)
 - Update CHANGELOG.md for v063c6bf6847c29777ee9d768bb52da8284e8eb7c (20d39a5)
 - Merge branch 'main' of <https://github.com/W0rkingChr1s/rSynBackTux> (063c6bf)
