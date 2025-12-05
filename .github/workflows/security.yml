@@ -19,10 +19,15 @@ jobs:
           fetch-depth: 0
 
       - name: Install shellharden
-        run: sudo apt-get update && sudo apt-get install -y shellharden
+        run: |
+          wget -qO shellharden.tar.gz \
+            https://github.com/anordal/shellharden/releases/latest/download/shellharden-x86_64-unknown-linux-gnu.tar.gz
+          sudo tar -xzf shellharden.tar.gz -C /usr/local/bin shellharden
+          rm shellharden.tar.gz
+          shellharden --version
 
       - name: Security linting
         run: |
           echo "Scanning shell scripts for unsafe patterns..."
           find . -type f -name "*.sh" -print0 \
-            | xargs -0 -I {} shellharden --check {}
+            | xargs -0 -r shellharden --check
