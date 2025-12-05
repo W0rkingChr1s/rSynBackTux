@@ -5,28 +5,29 @@ on:
     branches:
       - main
   pull_request:
+    branches:
+      - main
   schedule:
-    - cron: "0 3 * * 6"
+    - cron: "0 3 * * 6" # samstags 03:00
   workflow_dispatch:
-
-permissions:
-  contents: read
-  security-events: write
 
 jobs:
   analyze:
     name: CodeQL Analyze
     runs-on: ubuntu-latest
 
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Standard-Setup, keine eigenen Inputs, keine Sprachen erzwingen
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
-        with:
-          config: |
-            disable-default-queries: true
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
