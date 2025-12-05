@@ -2,6 +2,7 @@
 
 ## v1.1.0 - 2025-12-05
 
+- Update CodeQL and ShellCheck workflows for improved analysis and clarity (28ef6be)
 - Remove --github-actions flag from TruffleHog step (e665de4)
 - Fix TruffleHog extra_args (no duplicate --fail) (9f1f374)
 - Update secret scan workflow for TruffleHog (994d3d1)
