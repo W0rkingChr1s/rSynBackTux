@@ -12,6 +12,8 @@
 ![Stars](https://img.shields.io/github/stars/W0rkingChr1s/rSynBackTuX?style=social)
 ![Issues](https://img.shields.io/github/issues/W0rkingChr1s/rSynBackTuX)
 ![Shell Script](https://img.shields.io/badge/language-shell-blue)
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/w0rkingchr1s)
+
 
 rSynBackTux (**r**sync|**Syn**ology|**Back**up|**Tux**) ermöglicht es, **beliebige Linux-Server automatisiert und zuverlässig auf eine Synology NAS zu sichern** – ohne zusätzliche Software oder Agenten.  
 Die Sicherung erfolgt per **rsync-Daemon** auf der Synology und einem automatisch installierten Backup-Script auf den Linux-Servern.
