@@ -2,6 +2,7 @@
 
 ## v1.1.0 - 2025-12-05
 
+- Aktualisiere Workflows: Füge ShellCheck und Trivy-Scans hinzu, passe CodeQL- und Secret-Scan-Konfigurationen an (00feb8c)
 - Aktualisiere CodeQL-Workflow: Bereinige Cron-Format und entferne nicht benötigte Sprachen (8fb7beb)
 - Füge CodeQL-Analyse, Secret-Scan und Sicherheitsprüfung für Shell-Skripte hinzu (1a42337)
 - Entferne veraltete Einträge aus dem CHANGELOG.md und bereinige die Struktur. (749cf52)
