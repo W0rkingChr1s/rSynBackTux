@@ -2,6 +2,15 @@
 
 ## v1.1.0 - 2025-12-05
 
+- Merge branch 'main' of https://github.com/W0rkingChr1s/rSynBackTux (063c6bf)
+- Aktualisiere README.md mit korrektem GitHub-Link und füge einen persönlichen Hinweis hinzu; entferne test.txt (ccb53a0)
+- Update CHANGELOG.md for v203b181f935312f02d7f40d9dce27e259df9373d (d85387c)
+- Aktualisiere Beispielversionsnummer und Fehlermeldungen im Release-Skript (203b181)
+
+# Changelog
+
+## v1.1.0 - 2025-12-05
+
 - Aktualisiere Beispielversionsnummer und Fehlermeldungen im Release-Skript (203b181)
 
 # Changelog
