@@ -1,4 +1,7 @@
 name: ShellCheck
+permissions:
+  contents: read
+  pull-requests: write
 
 on:
   push:
@@ -12,9 +15,6 @@ on:
       - "**.sh"
       - ".github/workflows/shellcheck.yml"
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   shellcheck:
