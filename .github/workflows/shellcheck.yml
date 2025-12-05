@@ -18,22 +18,33 @@ permissions:
 
 jobs:
   shellcheck:
-    name: Run ShellCheck on shell scripts
+    name: Run ShellCheck and shellharden on shell scripts
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install ShellCheck
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck
-
+      # ShellCheck über fertige Action – kein eigenes Install-Gefrickel nötig
       - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          scandir: .
+        env: 
+          SHELLCHECK_OPTS: -x
+
+      # shellharden von GitHub-Release holen
+      - name: Install shellharden
         run: |
-          echo "Running ShellCheck on all .sh files..."
-          if ! find . -type f -name "*.sh" -print0 | xargs -0 -r shellcheck -x; then
-            echo "ShellCheck found issues."
+          wget -qO shellharden.tar.gz https://github.com/anordal/shellharden/releases/latest/download/shellharden-x86_64-unknown-linux-gnu.tar.gz
+          sudo tar xf shellharden.tar.gz -C /usr/local/bin shellharden
+          rm shellharden.tar.gz
+          shellharden --version
+
+      - name: Run shellharden (check only)
+        run: |
+          echo "Running shellharden on all .sh files (check mode)..."
+          if ! find . -type f -name "*.sh" -print0 | xargs -0 -r shellharden --check; then
+            echo "shellharden found issues."
             exit 1
           fi

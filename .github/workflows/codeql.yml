@@ -25,7 +25,8 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          disable-default-queries: true
+          config: |
+            disable-default-queries: true
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
