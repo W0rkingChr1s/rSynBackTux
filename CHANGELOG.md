@@ -2,6 +2,7 @@
 
 ## v1.1.0 - 2025-12-05
 
+- Ändere Berechtigungen in Workflow-Dateien von "write" auf "read" für ShellCheck und Trivy (0cd65fb)
 - Ändere Berechtigungen in Workflow-Dateien von "read" auf "write" für Changelog, CodeQL, ShellCheck und Trivy (a56c53b)
 - Füge Berechtigungen für Inhalte und Pull-Requests in Workflow-Dateien hinzu (bb43558)
 - Füge Statusüberprüfung für shellharden-Linting hinzu, um CI nicht bei gefundenen Problemen zu fehlschlagen (131bdc9)
