@@ -1,0 +1,28 @@
+name: Shell Security Audit
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  audit:
+    name: Harden shell scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install shellharden
+        run: sudo apt-get update && sudo apt-get install -y shellharden
+
+      - name: Security linting
+        run: |
+          echo "Scanning shell scripts for unsafe patterns..."
+          find . -type f -name "*.sh" -print0 \
+            | xargs -0 -I {} shellharden --check {}
