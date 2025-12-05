@@ -2,6 +2,7 @@
 
 ## v1.1.0 - 2025-12-05
 
+- Füge Statusüberprüfung für shellharden-Linting hinzu, um CI nicht bei gefundenen Problemen zu fehlschlagen (131bdc9)
 - Verbessere CodeQL-Workflow: Bereinige Berechtigungen und strukturiere den Code (02da0cc)
 - Use shellharden from GitHub release in security audit workflow (d454e36)
 - Update CodeQL and ShellCheck workflows for improved analysis and clarity (28ef6be)
