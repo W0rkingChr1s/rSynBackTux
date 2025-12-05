@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
   schedule:
-    - cron: '0 3 * * 6'    # einmal pro Woche
+    - cron: "0 3 * * 6" # einmal pro Woche
   workflow_dispatch:
 
 permissions:
@@ -26,8 +26,6 @@ jobs:
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
-        with:
-          languages: shell
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
