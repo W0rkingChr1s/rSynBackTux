@@ -2,6 +2,12 @@
 
 ## v1.1.0 - 2025-12-05
 
+- Aktualisiere Beispielversionsnummer und Fehlermeldungen im Release-Skript (203b181)
+
+# Changelog
+
+## v1.1.0 - 2025-12-05
+
 - Merge branch 'main' of https://github.com/W0rkingChr1s/rSynBackTux (2ba7ad4)
 - Release 1.1.0 (127bdd7)
 - Update CHANGELOG.md for vdc7b4441f2fa5a9632e8a60e9fdc172330938154 (7381c8f)
