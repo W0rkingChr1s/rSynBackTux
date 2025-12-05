@@ -13,7 +13,7 @@
 ![Issues](https://img.shields.io/github/issues/W0rkingChr1s/rSynBackTuX)
 ![Shell Script](https://img.shields.io/badge/language-shell-blue)
 
-rSynBackTux ermöglicht es, **beliebige Linux-Server automatisiert und zuverlässig auf eine Synology NAS zu sichern** – ohne zusätzliche Software oder Agenten.  
+rSynBackTux (**r**sync|**Syn**ology|**Back**up|**Tux**) ermöglicht es, **beliebige Linux-Server automatisiert und zuverlässig auf eine Synology NAS zu sichern** – ohne zusätzliche Software oder Agenten.  
 Die Sicherung erfolgt per **rsync-Daemon** auf der Synology und einem automatisch installierten Backup-Script auf den Linux-Servern.
 
 Der Installer richtet alles automatisch ein:
@@ -152,7 +152,7 @@ sudo /usr/local/sbin/backup-to-synology.sh
 Auf jedem neuen Server einfach:
 
 ```bash
-curl -s https://raw.githubusercontent.com/<USER>/<REPO>/main/install-syno-backup.sh | sudo bash
+curl -s https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/install-syno-backup.sh | sudo bash
 ```
 
 Der Installer:
@@ -171,11 +171,11 @@ Keine manuelle Konfiguration notwendig.
 
 Beispiel:
 
-NetBackup/
-    ├── server1/
-    ├── server2/
-    ├── server3/
-    └── server4/
+NetBackup/  
+├── server1/  
+├── server2/  
+├── server3/  
+└── server4/  
 
 Jeder Server hat seinen eigenen Bereich.
 
@@ -250,3 +250,7 @@ NetBackup/<SERVERNAME>/
 
 Dieses Projekt steht unter der MIT-Lizenz.  
 Nutzung, Anpassung und Weiterentwicklung sind ausdrücklich erwünscht.
+
+---
+
+Made with ❤️, sweat and slightly too much coffee ☕🐧
