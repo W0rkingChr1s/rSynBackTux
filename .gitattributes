@@ -1,2 +1,42 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# ============================================
+# rSynBackTux .gitattributes
+# ============================================
+
+# Standard: Linux line endings überall
+* text eol=lf
+
+# Ensure shell scripts keep LF endings and stay executable-friendly
+*.sh text eol=lf
+
+# Treat markdown files as text and diff them cleanly
+*.md text diff=markdown
+
+# Config files and workflow YAML -> readable diffs
+*.yml text
+*.yaml text
+
+# GitHub Actions files get good diffs
+.github/** text
+
+# Treat .log files consistently (even if accidentally committed)
+*.log text
+
+# Ignore binary diffs for compressed files
+*.gz binary
+*.zip binary
+*.tar binary
+*.tgz binary
+
+# Respect Linux chmod flags for scripts
+scripts/* export-ignore
+
+# Do not auto-normalize binary files
+*.png binary
+*.jpg binary
+*.svg binary
+
+# Disable eol normalization for images
+*.ico binary
+
+# Prevent Windows CRLF pollution in bash scripts
+src/*.sh text eol=lf

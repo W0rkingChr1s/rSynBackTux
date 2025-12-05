@@ -1,0 +1,58 @@
+# ============================================================
+# rSynBackTux .gitignore
+# ============================================================
+
+# --- Build artefacts / Release Bundles ---
+dist/
+*.tar.gz
+*.zip
+
+# --- Backup / Log output ---
+*.log
+*.bak
+*.swp
+*.tmp
+*.old
+
+# --- Generated changelog lock or temp files ---
+CHANGELOG.md.tmp
+
+# --- rsync / test output ---
+rsyncd.log
+test-backup/
+output/
+
+# --- Runtime scripts / local testing ---
+run.sh
+local-test/
+sandbox/
+tmp/
+
+# --- Secret files / auth files ---
+/root/.rsync_pass
+*.pass
+*.secret
+*.key
+
+# --- OS crap ---
+.DS_Store
+Thumbs.db
+
+# --- Editors ---
+.idea/
+.vscode/
+*.iml
+
+# --- GitHub Actions artifacts ---
+/.github/workflows/*.cache
+*.coverage
+
+# --- Project internal script folders ---
+/scripts/*.local
+/scripts/debug-*
+
+# --- Node / Python / container leftovers (falls integriert) ---
+node_modules/
+__pycache__/
+.env
+.venv/
