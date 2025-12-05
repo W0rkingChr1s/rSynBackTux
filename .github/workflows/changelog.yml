@@ -21,13 +21,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Version aus VERSION-Datei lesen (falls vorhanden)
-          VERSION="$(cat VERSION 2>/dev/null || echo 'Unreleased')"
+          # Version aus VERSION-Datei lesen
+          if [ -f VERSION ]; then
+            VERSION="$(cat VERSION)"
+          else
+            echo "VERSION-Datei nicht gefunden, breche ab."
+            exit 1
+          fi
+
           TAG_HEADER="v${VERSION}"
+          echo "Current VERSION: ${VERSION} (Header: ${TAG_HEADER})"
 
-          echo "Current VERSION: ${VERSION}"
-
-          # Letztes Tag suchen (letztes Release)
+          # Letztes Tag ermitteln (letztes Release)
           LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
 
           if [ -n "${LAST_TAG}" ]; then
@@ -40,21 +45,69 @@ jobs:
 
           DATE="$(date +%F)"
 
+          # Neue Sektion in temporäre Datei schreiben
+          SECTION_FILE="SECTION.md"
+          {
+            echo "## ${TAG_HEADER} - ${DATE}"
+            echo
+
+            # Commits auflisten, dabei Changelog-/Merge-Spam rausfiltern
+            git log --pretty='%s (%h)' ${RANGE} \
+              | grep -v -E '^Update CHANGELOG\.md' \
+              | grep -v -E '^Merge branch ' \
+              | sed 's/^/- /'
+
+            echo
+          } > "${SECTION_FILE}"
+
+          # Wenn es noch kein CHANGELOG gibt: neu erstellen
+          if [ ! -f CHANGELOG.md ]; then
+            {
+              echo "# Changelog"
+              echo
+              cat "${SECTION_FILE}"
+            } > CHANGELOG.md
+            exit 0
+          fi
+
+          # Bestehendes CHANGELOG bereinigen:
+          # - alte Kopfzeile "# Changelog" entfernen (wir setzen sie neu)
+          # - alten Block für aktuelle Version komplett entfernen
+          CLEANED_OLD="OLD_SECTIONS.md"
+          awk -v ver="## ${TAG_HEADER} " '
+            BEGIN { skip=0 }
+            {
+              # alte Kopfzeile verwerfen
+              if (NR == 1 && $0 ~ /^# Changelog/) { next }
+
+              # Versions-Überschriften erkennen
+              if ($0 ~ /^## /) {
+                if (index($0, ver) == 1) {
+                  # ab hier alten Block für aktuelle Version überspringen
+                  skip=1
+                  next
+                } else if (skip == 1) {
+                  # neue Version beginnt, ab hier wieder drucken
+                  skip=0
+                }
+              }
+
+              if (skip == 0) {
+                print
+              }
+            }
+          ' CHANGELOG.md > "${CLEANED_OLD}"
+
+          # Neues CHANGELOG aufbauen:
+          # - Kopfzeile
+          # - neue Sektion
+          # - Rest (bereinigte alten Versionen)
           {
             echo "# Changelog"
             echo
-            echo "## ${TAG_HEADER} - ${DATE}"
-            echo
-            git log --pretty='- %s (%h)' ${RANGE}
-            echo
-          } > NEW_CHANGELOG.md
-
-          if [ -f CHANGELOG.md ]; then
-            echo "Appending old CHANGELOG.md"
-            cat CHANGELOG.md >> NEW_CHANGELOG.md
-          fi
-
-          mv NEW_CHANGELOG.md CHANGELOG.md
+            cat "${SECTION_FILE}"
+            cat "${CLEANED_OLD}"
+          } > CHANGELOG.md
 
       - name: Commit CHANGELOG.md
         uses: stefanzweifel/git-auto-commit-action@v5
