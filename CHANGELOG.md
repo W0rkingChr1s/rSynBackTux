@@ -2,6 +2,7 @@
 
 ## v1.1.0 - 2025-12-05
 
+- Aktualisiere CodeQL-Workflow: Bereinige Cron-Format und entferne nicht benötigte Sprachen (8fb7beb)
 - Füge CodeQL-Analyse, Secret-Scan und Sicherheitsprüfung für Shell-Skripte hinzu (1a42337)
 - Entferne veraltete Einträge aus dem CHANGELOG.md und bereinige die Struktur. (749cf52)
 - Verbessere die Logik zur Versionsbestimmung und aktualisiere die Generierung des CHANGELOG.md, um Merge-Spam zu filtern und die Struktur zu optimieren. (3883d64)
