@@ -22,9 +22,9 @@ if [[ "$BRANCH" != "main" ]]; then
   exit 1
 fi
 
-# Arbeitsverzeichnis sauber?
-if [[ -n "$(git status --porcelain)" ]]; then
-  echo "Arbeitsverzeichnis ist nicht sauber. Commit/rollback zuerst:"
+# Arbeitsverzeichnis sauber (nur getrackte Dateien prüfen, untracked erlauben)?
+if ! git diff-index --quiet HEAD --; then
+  echo "Arbeitsverzeichnis ist nicht sauber (Änderungen an getrackten Dateien)."
   git status
   exit 1
 fi
