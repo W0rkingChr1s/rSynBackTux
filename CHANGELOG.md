@@ -2,6 +2,7 @@
 
 ## v1.1.0 - 2025-12-05
 
+- Fix TruffleHog extra_args (no duplicate --fail) (9f1f374)
 - Update secret scan workflow for TruffleHog (994d3d1)
 - Aktualisiere Workflows: Füge ShellCheck und Trivy-Scans hinzu, passe CodeQL- und Secret-Scan-Konfigurationen an (00feb8c)
 - Aktualisiere CodeQL-Workflow: Bereinige Cron-Format und entferne nicht benötigte Sprachen (8fb7beb)
