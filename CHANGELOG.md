@@ -2,12 +2,14 @@
 
 ## v1.1.0 - 2026-03-27
 
+- Merge pull request #2 from W0rkingChr1s/dependabot/github_actions/dot-github/workflows/github_actions-34786f325a (a21a07c)
 - Merge pull request #4 from W0rkingChr1s/claude/code-review-iRE2k (7f9485b)
 - fix: shellharden-Konformität – überflüssige Braces entfernt (490c257)
 - fix: Hostname-Sanitierung, Netzwerkcheck, grep -F für Cron (3c8fa24)
 - Merge pull request #3 from W0rkingChr1s/add-claude-github-actions-1774595246426 (8350ef4)
 - "Claude Code Review workflow" (4604156)
 - "Claude PR Assistant workflow" (57957f3)
+- Bump aquasecurity/trivy-action (5a000cd)
 - Ändere Berechtigungen in Workflow-Dateien von "write" auf "read" für ShellCheck und Trivy (0cd65fb)
 - Ändere Berechtigungen in Workflow-Dateien von "read" auf "write" für Changelog, CodeQL, ShellCheck und Trivy (a56c53b)
 - Füge Berechtigungen für Inhalte und Pull-Requests in Workflow-Dateien hinzu (bb43558)
