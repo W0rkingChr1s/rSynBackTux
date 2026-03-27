@@ -57,7 +57,8 @@ jobs:
             git log --pretty='%s (%h)' ${RANGE} \
               | grep -v -E '^Update CHANGELOG\.md' \
               | grep -v -E '^Merge branch ' \
-              | sed 's/^/- /'
+              | sed 's/^/- /' \
+              || true
 
             echo
           } > "${SECTION_FILE}"
