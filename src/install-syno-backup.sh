@@ -49,7 +49,7 @@ main() {
   DEFAULT_HOST="192.168.178.5"
   DEFAULT_MODULE="NetBackup"
   DEFAULT_USER="backup"
-  DEFAULT_SUBDIR="$(hostname -s)"
+  DEFAULT_SUBDIR="$(hostname -s | sed 's/[^a-zA-Z0-9_-]/_/g')"
 
   local SYNO_HOST SYNO_MODULE SYNO_USER SYNO_SUBDIR RSYNC_PASS
 
@@ -96,6 +96,17 @@ main() {
     printf "%s\n" "${RSYNC_PASS}" > "${PASSFILE}"
     chmod 600 "${PASSFILE}"
     echo "Passwortdatei in ${PASSFILE} angelegt."
+
+    # Verbindung zur Synology testen
+    echo "Verbindung zur Synology wird geprüft..."
+    if ! rsync --list-only --password-file="${PASSFILE}" \
+        "${SYNO_USER}@${SYNO_HOST}::${SYNO_MODULE}/" >/dev/null 2>&1; then
+      echo "Fehler: Synology nicht erreichbar oder Zugangsdaten ungültig." >&2
+      echo "Bitte Host, Modulname, Benutzer und Passwort prüfen." >&2
+      rm -f "${PASSFILE}"
+      exit 1
+    fi
+    echo "Verbindung erfolgreich."
 
     # Backup-Script schreiben
     cat > "${BACKUP_SCRIPT}" <<EOF
@@ -157,7 +168,7 @@ EOF
     read -r -p "Cron-Zeit (Standard: '${CRON_EXPR_DEFAULT}'): " CRON_EXPR || true
     CRON_EXPR="${CRON_EXPR:-$CRON_EXPR_DEFAULT}"
 
-    (crontab -l 2>/dev/null | grep -v "${BACKUP_SCRIPT}" || true; echo "${CRON_EXPR} ${BACKUP_SCRIPT}") | crontab -
+    (crontab -l 2>/dev/null | grep -Fv "${BACKUP_SCRIPT}" || true; echo "${CRON_EXPR} ${BACKUP_SCRIPT}") | crontab -
     echo "Cronjob eingerichtet: ${CRON_EXPR} ${BACKUP_SCRIPT}"
   else
     echo "Kein Cronjob eingerichtet."
