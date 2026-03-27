@@ -50,6 +50,8 @@ Direkter Installer (Raw-Datei):
 - Ausführliches Logging
 - Vollautomatische Installation in wenigen Sekunden
 - Sicherung über Standard-Dienste (kein Agent, kein Docker nötig)
+- Verbindungstest zur Synology vor der Konfiguration (Fehlkonfiguration wird frühzeitig erkannt)
+- Automatische Bereinigung von Sonderzeichen im Hostnamen
 
 ---
 
@@ -76,8 +78,8 @@ Siehe [CHANGELOG.md](CHANGELOG.md) für eine Übersicht der Änderungen pro Vers
 - DSM 6 oder DSM 7
 - Shared Folder für Backups (z. B. `NetBackup`)
 - Aktivierte rsync-Dienste:
-  - „rsync-Dienst aktivieren“
-  - „Netzwerksicherungsziel aktivieren“
+  - „rsync-Dienst aktivieren"
+  - „Netzwerksicherungsziel aktivieren"
 - rsync-Konto `backup` mit Berechtigung auf das Modul `NetBackup`
 
 ### Linux-Server
@@ -111,8 +113,11 @@ wget -qO- https://raw.githubusercontent.com/W0rkingChr1s/rSynBackTux/main/src/in
 - Synology-Host / IP
 - rsync-Modulname (Standard: `NetBackup`)
 - rsync-Benutzername (Standard: `backup`)
-- Unterordner (Standard: Hostname des Servers)
+- Unterordner (Standard: Hostname des Servers, Sonderzeichen werden automatisch bereinigt)
 - Passwort für rsync (wird nicht im Repo gespeichert, nur lokal in `/root/.rsync_pass`)
+
+Nach der Passworteingabe testet der Installer die Verbindung zur Synology. Bei falschen Zugangsdaten oder nicht erreichbarer NAS wird die Installation abgebrochen und die Passwortdatei wieder entfernt.
+
 - Ob ein Cronjob eingerichtet werden soll (inkl. Uhrzeit)
 
 ---
