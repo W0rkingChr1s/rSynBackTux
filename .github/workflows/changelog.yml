@@ -47,6 +47,12 @@ jobs:
 
           DATE="$(date +%F)"
 
+          # Commits sammeln (grep kann exit 1 zurückgeben bei leerem Range – abfangen)
+          COMMITS="$(git log --pretty='%s (%h)' ${RANGE} \
+            | grep -v -E '^Update CHANGELOG\.md' \
+            | grep -v -E '^Merge branch ' \
+            || true)"
+
           # Neue Sektion in temporäre Datei schreiben
           SECTION_FILE="SECTION.md"
           {
