@@ -2,6 +2,7 @@
 
 ## v1.2.0 - 2026-03-27
 
+- fix: release.yml – contents: write für GitHub Release-Erstellung (236c6cd)
 - fix: changelog.yml – Commits in Variable sammeln statt direkt im Block (5c044e0)
 
 
