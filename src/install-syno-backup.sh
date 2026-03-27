@@ -11,7 +11,7 @@ fi
 
 require_root() {
   # Im DRY RUN niemals root verlangen
-  if [[ "${DRY_RUN}" == true ]]; then
+  if [[ "$DRY_RUN" == true ]]; then
     return
   fi
 
@@ -27,7 +27,7 @@ prompt_nonempty() {
   local default="${3-}"
 
   local value=""
-  while [[ -z "${value}" ]]; do
+  while [[ -z "$value" ]]; do
     if [[ -n "$default" ]]; then
       read -r -p "${prompt} [${default}]: " value || true
       value="${value:-$default}"
@@ -38,7 +38,7 @@ prompt_nonempty() {
       echo "Eingabe darf nicht leer sein."
     fi
   done
-  printf -v "${var_name}" '%s' "${value}"
+  printf -v "$var_name" '%s' "$value"
 }
 
 main() {
@@ -49,22 +49,22 @@ main() {
   DEFAULT_HOST="192.168.178.5"
   DEFAULT_MODULE="NetBackup"
   DEFAULT_USER="backup"
-  DEFAULT_SUBDIR="$(hostname -s)"
+  DEFAULT_SUBDIR="$(hostname -s | sed 's/[^a-zA-Z0-9_-]/_/g')"
 
   local SYNO_HOST SYNO_MODULE SYNO_USER SYNO_SUBDIR RSYNC_PASS
 
-  prompt_nonempty SYNO_HOST  "Synology Host/IP" "${DEFAULT_HOST}"
-  prompt_nonempty SYNO_MODULE "rsync Modulname" "${DEFAULT_MODULE}"
-  prompt_nonempty SYNO_USER   "rsync Benutzername" "${DEFAULT_USER}"
-  prompt_nonempty SYNO_SUBDIR "Unterordner auf NAS für diesen Server" "${DEFAULT_SUBDIR}"
+  prompt_nonempty SYNO_HOST  "Synology Host/IP" "$DEFAULT_HOST"
+  prompt_nonempty SYNO_MODULE "rsync Modulname" "$DEFAULT_MODULE"
+  prompt_nonempty SYNO_USER   "rsync Benutzername" "$DEFAULT_USER"
+  prompt_nonempty SYNO_SUBDIR "Unterordner auf NAS für diesen Server" "$DEFAULT_SUBDIR"
 
   # Passwort
   while [[ -z "${RSYNC_PASS-}" ]]; do
-    printf "Passwort für rsync Benutzer '%s': " "${SYNO_USER}"
+    printf "Passwort für rsync Benutzer '%s': " "$SYNO_USER"
     # shellcheck disable=SC2162
     read -rs RSYNC_PASS || true
     echo
-    if [[ -z "${RSYNC_PASS}" ]]; then
+    if [[ -z "$RSYNC_PASS" ]]; then
       echo "Passwort darf nicht leer sein."
     fi
   done
@@ -73,7 +73,7 @@ main() {
   local BACKUP_SCRIPT="/usr/local/sbin/backup-to-synology.sh"
   local LOGFILE="/var/log/backup-to-synology.log"
 
-  if [[ "${DRY_RUN}" == false ]]; then
+  if [[ "$DRY_RUN" == false ]]; then
     # rsync installieren falls nötig
     if ! command -v rsync >/dev/null 2>&1; then
       echo "rsync nicht gefunden, versuche Installation..."
@@ -93,12 +93,23 @@ main() {
     fi
 
     # Passwortdatei
-    printf "%s\n" "${RSYNC_PASS}" > "${PASSFILE}"
-    chmod 600 "${PASSFILE}"
+    printf "%s\n" "$RSYNC_PASS" > "$PASSFILE"
+    chmod 600 "$PASSFILE"
     echo "Passwortdatei in ${PASSFILE} angelegt."
 
+    # Verbindung zur Synology testen
+    echo "Verbindung zur Synology wird geprüft..."
+    if ! rsync --list-only --password-file="$PASSFILE" \
+        "${SYNO_USER}@${SYNO_HOST}::${SYNO_MODULE}/" >/dev/null 2>&1; then
+      echo "Fehler: Synology nicht erreichbar oder Zugangsdaten ungültig." >&2
+      echo "Bitte Host, Modulname, Benutzer und Passwort prüfen." >&2
+      rm -f "$PASSFILE"
+      exit 1
+    fi
+    echo "Verbindung erfolgreich."
+
     # Backup-Script schreiben
-    cat > "${BACKUP_SCRIPT}" <<EOF
+    cat > "$BACKUP_SCRIPT" <<EOF
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
@@ -122,9 +133,9 @@ LOGFILE="${LOGFILE}"
 } >> "\${LOGFILE}" 2>&1
 EOF
 
-    chmod +x "${BACKUP_SCRIPT}"
-    touch "${LOGFILE}"
-    chmod 640 "${LOGFILE}"
+    chmod +x "$BACKUP_SCRIPT"
+    touch "$LOGFILE"
+    chmod 640 "$LOGFILE"
 
     echo "Backup-Script: ${BACKUP_SCRIPT}"
     echo "Logfile:       ${LOGFILE}"
@@ -137,11 +148,11 @@ EOF
   read -r -p "Jetzt einen Testlauf starten? [j/N]: " RUN_NOW || true
   RUN_NOW="${RUN_NOW:-n}"
 
-  if [[ "${DRY_RUN}" == false && "${RUN_NOW}" =~ ^[JjYy]$ ]]; then
+  if [[ "$DRY_RUN" == false && "$RUN_NOW" =~ ^[JjYy]$ ]]; then
     echo "Starte Test-Backup..."
-    "${BACKUP_SCRIPT}"
+    "$BACKUP_SCRIPT"
     echo "Testlauf beendet. (Auszug aus dem Logfile)"
-    tail -n 20 "${LOGFILE}" || true
+    tail -n 20 "$LOGFILE" || true
   else
     echo "Kein Testlauf gestartet."
   fi
@@ -151,13 +162,13 @@ EOF
   read -r -p "Cronjob für tägliches Backup um 03:00 einrichten? [J/n]: " SET_CRON || true
   SET_CRON="${SET_CRON:-j}"
 
-  if [[ "${DRY_RUN}" == false && "${SET_CRON}" =~ ^[JjYy]$ ]]; then
+  if [[ "$DRY_RUN" == false && "$SET_CRON" =~ ^[JjYy]$ ]]; then
     local CRON_EXPR_DEFAULT="0 3 * * *"
     local CRON_EXPR
     read -r -p "Cron-Zeit (Standard: '${CRON_EXPR_DEFAULT}'): " CRON_EXPR || true
     CRON_EXPR="${CRON_EXPR:-$CRON_EXPR_DEFAULT}"
 
-    (crontab -l 2>/dev/null | grep -v "${BACKUP_SCRIPT}" || true; echo "${CRON_EXPR} ${BACKUP_SCRIPT}") | crontab -
+    (crontab -l 2>/dev/null | grep -Fv "$BACKUP_SCRIPT" || true; echo "${CRON_EXPR} ${BACKUP_SCRIPT}") | crontab -
     echo "Cronjob eingerichtet: ${CRON_EXPR} ${BACKUP_SCRIPT}"
   else
     echo "Kein Cronjob eingerichtet."
