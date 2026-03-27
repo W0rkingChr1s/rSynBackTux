@@ -2,6 +2,9 @@
 
 ## v1.1.0 - 2026-03-27
 
+- Merge pull request #4 from W0rkingChr1s/claude/code-review-iRE2k (7f9485b)
+- fix: shellharden-Konformität – überflüssige Braces entfernt (490c257)
+- fix: Hostname-Sanitierung, Netzwerkcheck, grep -F für Cron (3c8fa24)
 - Merge pull request #3 from W0rkingChr1s/add-claude-github-actions-1774595246426 (8350ef4)
 - "Claude Code Review workflow" (4604156)
 - "Claude PR Assistant workflow" (57957f3)
