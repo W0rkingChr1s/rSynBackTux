@@ -58,9 +58,14 @@ jobs:
           {
             echo "## ${TAG_HEADER} - ${DATE}"
             echo
-            if [ -n "${COMMITS}" ]; then
-              echo "${COMMITS}" | sed 's/^/- /'
-            fi
+
+            # Commits auflisten, dabei Changelog-/Merge-Spam rausfiltern
+            git log --pretty='%s (%h)' ${RANGE} \
+              | grep -v -E '^Update CHANGELOG\.md' \
+              | grep -v -E '^Merge branch ' \
+              | sed 's/^/- /' \
+              || true
+
             echo
           } > "${SECTION_FILE}"
 
