@@ -33,13 +33,14 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           cp src/install-syno-backup.sh dist/
-          [ -f README.md ] && cp README.md dist/
-          [ -f CHANGELOG.md ] && cp CHANGELOG.md dist/
-          [ -f VERSION ] && cp VERSION dist/
-          cd dist
-          tar czf "rSynBackTux-${{ steps.vars.outputs.version }}.tar.gz" *
-          ls -l
-          cd ..
+          cp src/uninstall-syno-backup.sh dist/
+          for f in README.md CHANGELOG.md LICENSE VERSION; do
+            if [ -f "$f" ]; then cp "$f" dist/; fi
+          done
+          # Archiv außerhalb von dist/ erzeugen, sonst packt tar sich selbst mit ein
+          tar czf "rSynBackTux-${{ steps.vars.outputs.version }}.tar.gz" -C dist .
+          mv "rSynBackTux-${{ steps.vars.outputs.version }}.tar.gz" dist/
+          ls -l dist
 
       - name: Create GitHub Release
         id: release
@@ -53,6 +54,7 @@ jobs:
           prerelease: false
           files: |
             dist/install-syno-backup.sh
+            dist/uninstall-syno-backup.sh
             dist/rSynBackTux-${{ steps.vars.outputs.version }}.tar.gz
           body: |
             Automated release for tag ${{ steps.vars.outputs.tag_name }}.

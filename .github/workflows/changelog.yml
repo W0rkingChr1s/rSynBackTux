@@ -34,6 +34,13 @@ jobs:
           TAG_HEADER="v${VERSION}"
           echo "Current VERSION: ${VERSION} (Header: ${TAG_HEADER})"
 
+          # Handgepflegte Abschnitte nicht überschreiben: Existiert bereits ein
+          # Block für die aktuelle Version, bleibt das CHANGELOG unverändert.
+          if [ -f CHANGELOG.md ] && grep -q "^## ${TAG_HEADER} " CHANGELOG.md; then
+            echo "Abschnitt für ${TAG_HEADER} existiert bereits – nichts zu tun."
+            exit 0
+          fi
+
           # Letztes Tag ermitteln (letztes Release)
           LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
 
