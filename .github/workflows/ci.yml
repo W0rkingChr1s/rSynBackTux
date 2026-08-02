@@ -1,16 +1,17 @@
 name: CI
+
 permissions:
   contents: read
-  pull-requests: write
+
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+  workflow_dispatch:
 
 jobs:
-  shellcheck:
-    name: Shellcheck
+  lint:
+    name: Lint (ShellCheck + shellharden)
     runs-on: ubuntu-latest
 
     steps:
@@ -22,34 +23,116 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck
 
-      - name: Run ShellCheck on shell scripts
+      - name: Run ShellCheck
         run: |
-          find src -type f \( -name "*.sh" -o -perm -111 \) -print0 \
-            | xargs -0 -r shellcheck
+          shellcheck -x src/*.sh scripts/*.sh tests/*.bash
 
-  installer-test:
-    name: Installer Dry-Run Test
+      - name: Install shellharden
+        run: |
+          wget -qO shellharden.tar.gz \
+            https://github.com/anordal/shellharden/releases/latest/download/shellharden-x86_64-unknown-linux-gnu.tar.gz
+          sudo tar -xzf shellharden.tar.gz -C /usr/local/bin shellharden
+          rm shellharden.tar.gz
+          shellharden --version
+
+      - name: Run shellharden (check only)
+        run: |
+          shellharden --check src/*.sh scripts/*.sh tests/*.bash
+
+  generated-script:
+    name: Generiertes Backup-Script prüfen
     runs-on: ubuntu-latest
-    needs: shellcheck
+    needs: lint
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Syntax check installer
+      - name: Install ShellCheck
         run: |
-          bash -n src/install-syno-backup.sh
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
 
-      - name: Run installer in dry-run mode
+      - name: Install shellharden
         run: |
-          chmod +x src/install-syno-backup.sh
-          # Simulierte Eingaben: Host, Modul, User, Subdir, Passwort, Testlauf?, Cron?
-          src/install-syno-backup.sh --dry-run << 'EOF'
-          192.168.178.5
+          wget -qO shellharden.tar.gz \
+            https://github.com/anordal/shellharden/releases/latest/download/shellharden-x86_64-unknown-linux-gnu.tar.gz
+          sudo tar -xzf shellharden.tar.gz -C /usr/local/bin shellharden
+          rm shellharden.tar.gz
+
+      # Der Backup-Runner wird zur Laufzeit erzeugt und würde sonst nie
+      # gelintet werden. Deshalb hier einmal erzeugen und mitprüfen.
+      - name: Generate backup runner
+        env:
+          RSYNBACKTUX_PASSWORD: ci-dummy
+        run: |
+          export RSYNBACKTUX_PREFIX="${RUNNER_TEMP}/prefix"
+          src/install-syno-backup.sh --non-interactive \
+            --host 192.0.2.1 --module NetBackup --user backup \
+            --subdir ci-runner --scheduler none \
+            --skip-connection-test --no-run-now
+          cp "${RSYNBACKTUX_PREFIX}/usr/local/sbin/backup-to-synology.sh" ./generated-runner.sh
+
+      - name: Lint generated runner
+        run: |
+          bash -n generated-runner.sh
+          shellcheck -x generated-runner.sh
+          shellharden --check generated-runner.sh
+
+  test:
+    name: bats-Testsuite
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+
+      - name: Run test suite
+        run: bats --print-output-on-failure tests/
+
+  dry-run:
+    name: Installer Dry-Run
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Syntax check
+        run: bash -n src/install-syno-backup.sh src/uninstall-syno-backup.sh
+
+      - name: Dry-Run (nicht-interaktiv)
+        env:
+          RSYNBACKTUX_PASSWORD: ci-dummy
+        run: |
+          src/install-syno-backup.sh --dry-run --non-interactive \
+            --host 192.0.2.1 --module NetBackup --user backup \
+            --subdir ci-test-server --time 03:00
+
+      - name: Dry-Run (interaktiv über Standardeingabe)
+        env:
+          RSYNBACKTUX_NO_TTY: "1"
+        run: |
+          src/install-syno-backup.sh --dry-run --scheduler none <<'EOF'
+          192.0.2.1
           NetBackup
           backup
           ci-test-server
           ci-test-password
-          n
-          n
           EOF
+
+      - name: Version stimmt mit VERSION-Datei überein
+        run: |
+          expected="rSynBackTux $(cat VERSION)"
+          actual="$(src/install-syno-backup.sh --version)"
+          if [ "$expected" != "$actual" ]; then
+            echo "VERSION-Datei (${expected}) und Installer (${actual}) weichen ab."
+            exit 1
+          fi

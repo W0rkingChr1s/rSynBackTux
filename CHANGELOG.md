@@ -1,5 +1,67 @@
 # Changelog
 
+## v2.0.0 - 2026-08-02
+
+Vollständige Überarbeitung. Die Konfiguration liegt jetzt in `/etc/rsynbacktux/`
+statt fest im generierten Script – bestehende Installationen sollten den
+Installer erneut ausführen.
+
+### Behoben
+
+- **Ausschlüsse griffen nicht.** Alle Muster steckten in einem einzigen
+  `--exclude='{/dev/*,/proc/*,...}'`. rsync expandiert keine Klammer-Listen,
+  dadurch wurden `/dev`, `/proc`, `/sys`, `/tmp`, `/run`, `/mnt` und `/media`
+  vollständig mitgesichert. Die Muster stehen jetzt einzeln in
+  `/etc/rsynbacktux/excludes.list`.
+- **Endlosschleife bei `curl | bash`.** Bei einer Pipe belegt das Script selbst
+  die Standardeingabe; die Eingabeschleife lief unbegrenzt weiter. Eingaben
+  werden jetzt bevorzugt von `/dev/tty` gelesen, ansonsten bricht der Installer
+  nach drei Versuchen mit klarer Meldung ab.
+- **Passwort landete auf der NAS.** `/root/.rsync_pass` war von keinem Ausschluss
+  erfasst und wurde bei jedem Lauf mitgesichert – ebenso das Logfile.
+- **rsync-Exitcode 24** („vanished files", auf laufenden Systemen normal) wurde
+  durch `set -e` als Fehlschlag gewertet.
+- **Fehlender Schutz vor Parallelläufen.** Der Runner sperrt jetzt per `flock`.
+- Cron-Ausdrücke mit führender Null (`08:09`) werden nicht mehr als Oktalzahl
+  interpretiert.
+- Die Passwortdatei wird mit `install -m 600` angelegt, statt erst zu schreiben
+  und danach die Rechte zu setzen.
+
+### Neu
+
+- Konfiguration in `/etc/rsynbacktux/backup.conf`: Host, Modul, Benutzer,
+  Quellpfad, Bandbreitenlimit, Timeout und weitere Optionen ohne
+  Neuinstallation änderbar.
+- Zeitsteuerung über systemd-Timer (`Persistent=true`, `RandomizedDelaySec`),
+  Cron als automatischer Fallback; wählbar über `--scheduler`.
+- Nicht-interaktiver Modus (`--non-interactive`) mit `--host`, `--module`,
+  `--user`, `--subdir`, `--time`, `--oncalendar`, `--cron`, `--password-file`
+  und `RSYNBACKTUX_PASSWORD` für Massenrollouts.
+- `--help` und `--version`; unbekannte Optionen enden mit Exitcode 2 statt
+  stillschweigend ignoriert zu werden.
+- Deinstallation über `src/uninstall-syno-backup.sh`, optional mit `--purge`.
+- Logrotation über `/etc/logrotate.d/rsynbacktux` (wöchentlich, 8 Generationen).
+- Netzwerk-Mounts (NFS/CIFS/SSHFS) werden zur Laufzeit automatisch
+  ausgeschlossen, damit ein eingehängtes Share nicht in sich selbst landet.
+- Verbindungstest prüft zusätzlich den Schreibzugriff im Zielunterordner.
+- `--numeric-ids` für korrekte UID/GID-Zuordnung bei der Wiederherstellung,
+  `--timeout`/`--contimeout` gegen hängende Läufe.
+- Ausführliche Ausgabe geht ins Logfile, eine Kurzmeldung ins Journal bzw. bei
+  Cron nur im Fehlerfall in die Mail.
+- bats-Testsuite mit 49 Tests (`tests/`), die vollständig in ein temporäres
+  Verzeichnis installiert und ohne NAS auskommt.
+
+### Geändert
+
+- `ci.yml` bündelt Lint, Tests und Dry-Run; `shellcheck.yml` und `security.yml`
+  entfallen (widersprüchliche shellharden-Gates).
+- Das generierte Backup-Script wird in CI erzeugt und mitgelintet.
+- Der Changelog-Workflow überschreibt handgepflegte Abschnitte nicht mehr.
+- Die doppelte `scripts/VERSION` entfällt, `VERSION` ist die einzige Quelle und
+  wird in CI gegen `--version` geprüft.
+- Standardmäßig `--info=stats2` statt `-v`; Einzeldateien nur noch mit
+  `VERBOSE="true"`.
+
 ## v1.2.0 - 2026-03-27
 
 - fix: release.yml – contents: write für GitHub Release-Erstellung (236c6cd)
