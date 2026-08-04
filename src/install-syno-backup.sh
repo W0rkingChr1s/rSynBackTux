@@ -15,23 +15,70 @@
 
 set -euo pipefail
 
-RSYNBACKTUX_VERSION="2.0.0"
+RSYNBACKTUX_VERSION="2.1.0"
 
 # Präfix für alle Zielpfade. Wird nur von der Testsuite gesetzt, damit eine
 # vollständige Installation in ein temporäres Verzeichnis laufen kann.
 PREFIX="${RSYNBACKTUX_PREFIX:-}"
 
-CONF_DIR="${PREFIX}/etc/rsynbacktux"
-CONF_FILE="${CONF_DIR}/backup.conf"
-EXCLUDE_FILE="${CONF_DIR}/excludes.list"
-BACKUP_SCRIPT="${PREFIX}/usr/local/sbin/backup-to-synology.sh"
-PASSFILE="${PREFIX}/root/.rsync_pass"
-LOGFILE="${PREFIX}/var/log/backup-to-synology.log"
-LOGROTATE_FILE="${PREFIX}/etc/logrotate.d/rsynbacktux"
-SYSTEMD_DIR="${PREFIX}/etc/systemd/system"
-SERVICE_UNIT="${SYSTEMD_DIR}/rsynbacktux.service"
-TIMER_UNIT="${SYSTEMD_DIR}/rsynbacktux.timer"
-LOCKFILE="${PREFIX}/var/lock/rsynbacktux.lock"
+# Paketmodus. Stammt die Software aus einem Distributionspaket (.deb), dann
+# gehören Backup-Runner, systemd-Units und Logrotation dem Paketmanager. Der
+# Installer schreibt dann nur noch Konfiguration, Passwortdatei und
+# Zeitsteuerung. Aktiv, wenn das Script unter dem Namen 'rsynbacktux-setup'
+# aufgerufen wird (so heißt es im Paket), per --packaged oder per
+# RSYNBACKTUX_PACKAGED=1.
+PACKAGED=false
+if [[ "$(basename -- "$0")" == "rsynbacktux-setup" || -n "${RSYNBACKTUX_PACKAGED-}" ]]; then
+  PACKAGED=true
+fi
+
+# Staging-Verzeichnis für den Paketbau (--emit-package-files), analog zu
+# DESTDIR bei 'make install'. Leer bedeutet: direkt ins laufende System.
+DESTDIR=""
+EMIT_DIR=""
+
+CONF_DIR=""
+CONF_FILE=""
+EXCLUDE_FILE=""
+BACKUP_SCRIPT=""
+PASSFILE=""
+LOGFILE=""
+LOGROTATE_FILE=""
+SYSTEMD_DIR=""
+UNIT_DIR=""
+SERVICE_UNIT=""
+TIMER_UNIT=""
+DROPIN_DIR=""
+DROPIN_FILE=""
+LOCKFILE=""
+
+# Setzt alle Zielpfade aus PREFIX und Paketmodus. Wird nach dem Parsen der
+# Optionen aufgerufen, weil --packaged die Pfade beeinflusst.
+compute_paths() {
+  CONF_DIR="${PREFIX}/etc/rsynbacktux"
+  CONF_FILE="${CONF_DIR}/backup.conf"
+  EXCLUDE_FILE="${CONF_DIR}/excludes.list"
+  PASSFILE="${PREFIX}/root/.rsync_pass"
+  LOGFILE="${PREFIX}/var/log/backup-to-synology.log"
+  LOGROTATE_FILE="${PREFIX}/etc/logrotate.d/rsynbacktux"
+  LOCKFILE="${PREFIX}/var/lock/rsynbacktux.lock"
+
+  SYSTEMD_DIR="${PREFIX}/etc/systemd/system"
+  DROPIN_DIR="${SYSTEMD_DIR}/rsynbacktux.timer.d"
+  DROPIN_FILE="${DROPIN_DIR}/override.conf"
+
+  if [[ "$PACKAGED" == true ]]; then
+    # Vom Paket mitgelieferte Dateien
+    BACKUP_SCRIPT="${PREFIX}/usr/sbin/rsynbacktux-backup"
+    UNIT_DIR="${PREFIX}/usr/lib/systemd/system"
+  else
+    BACKUP_SCRIPT="${PREFIX}/usr/local/sbin/backup-to-synology.sh"
+    UNIT_DIR="$SYSTEMD_DIR"
+  fi
+  SERVICE_UNIT="${UNIT_DIR}/rsynbacktux.service"
+  TIMER_UNIT="${UNIT_DIR}/rsynbacktux.timer"
+}
+compute_paths
 
 # Optionen (per CLI überschreibbar)
 OPT_HOST=""
@@ -96,6 +143,13 @@ Ablauf:
   --help                   Diese Hilfe anzeigen
   --version                Version ausgeben
 
+Paketmodus (rsynbacktux-setup aus dem .deb-Paket):
+  --packaged               Backup-Runner, systemd-Units und Logrotation stammen
+                           aus dem Paket; es werden nur Konfiguration,
+                           Passwortdatei und Zeitsteuerung geschrieben
+  --emit-package-files DIR Nur die statischen Paketdateien nach DIR schreiben
+                           (wird vom Paketbau benutzt, verändert nichts am System)
+
 Beispiel (vollautomatisch):
   RSYNBACKTUX_PASSWORD='geheim' ./install-syno-backup.sh --non-interactive \
       --host 192.168.178.5 --module NetBackup --user backup --time 02:30
@@ -116,6 +170,8 @@ parse_args() {
       --cron)             OPT_CRON="${2-}";          shift 2 ;;
       --scheduler)        OPT_SCHEDULER="${2-}";     shift 2 ;;
       --one-file-system)  OPT_ONE_FILE_SYSTEM="true"; shift ;;
+      --packaged)         PACKAGED=true;             shift ;;
+      --emit-package-files) EMIT_DIR="${2-}";        shift 2 ;;
       --non-interactive)  NON_INTERACTIVE=true;      shift ;;
       --run-now)          RUN_NOW="yes";             shift ;;
       --no-run-now)       RUN_NOW="no";              shift ;;
@@ -327,8 +383,18 @@ write_passfile() {
 }
 
 write_excludes() {
-  install -d -m 755 "$CONF_DIR"
-  cat > "$EXCLUDE_FILE" <<EXCLUDES
+  local out="${DESTDIR}${EXCLUDE_FILE}"
+
+  # Im Paketmodus gehört die Ausschlussliste dem Paket (conffile). Eine
+  # bestehende Datei wird deshalb nicht überschrieben – eigene Einträge
+  # überleben so jedes 'rsynbacktux-setup'.
+  if [[ "$PACKAGED" == true && -z "$DESTDIR" && -f "$out" ]]; then
+    log "Ausschlussliste vorhanden, bleibt unverändert: ${EXCLUDE_FILE}"
+    return
+  fi
+
+  install -d -m 755 "${DESTDIR}${CONF_DIR}"
+  cat > "$out" <<EXCLUDES
 # rSynBackTux – Ausschlussliste für rsync (--exclude-from)
 # Ein Muster pro Zeile. Zeilen mit '#' sind Kommentare.
 # Muster mit führendem '/' sind relativ zum Quellverzeichnis verankert.
@@ -361,7 +427,7 @@ ${LOGFILE}.*
 /var/cache/pacman/pkg/*
 /var/lib/lxcfs/*
 EXCLUDES
-  chmod 644 "$EXCLUDE_FILE"
+  chmod 644 "$out"
   log "Ausschlussliste angelegt: ${EXCLUDE_FILE}"
 }
 
@@ -402,7 +468,8 @@ write_config() {
 }
 
 write_backup_script() {
-  install -d -m 755 "$(dirname "$BACKUP_SCRIPT")"
+  local out="${DESTDIR}${BACKUP_SCRIPT}"
+  install -d -m 755 "$(dirname "$out")"
 
   {
     printf '%s\n' '#!/usr/bin/env bash'
@@ -556,9 +623,9 @@ fi
 
 exit "$RC"
 RUNNER
-  } > "$BACKUP_SCRIPT"
+  } > "$out"
 
-  chmod 755 "$BACKUP_SCRIPT"
+  chmod 755 "$out"
   log "Backup-Script angelegt: ${BACKUP_SCRIPT}"
 }
 
@@ -572,12 +639,14 @@ write_logfile() {
 }
 
 write_logrotate() {
-  if [[ ! -d "$(dirname "$LOGROTATE_FILE")" ]] && [[ -z "$PREFIX" ]]; then
+  local out="${DESTDIR}${LOGROTATE_FILE}"
+
+  if [[ ! -d "$(dirname "$out")" ]] && [[ -z "$PREFIX" && -z "$DESTDIR" ]]; then
     warn "logrotate scheint nicht installiert zu sein – Logrotation wird übersprungen."
     return
   fi
-  install -d -m 755 "$(dirname "$LOGROTATE_FILE")"
-  cat > "$LOGROTATE_FILE" <<ROTATE
+  install -d -m 755 "$(dirname "$out")"
+  cat > "$out" <<ROTATE
 ${LOGFILE} {
     weekly
     rotate 8
@@ -588,16 +657,16 @@ ${LOGFILE} {
     create 0640 root root
 }
 ROTATE
-  chmod 644 "$LOGROTATE_FILE"
+  chmod 644 "$out"
   log "Logrotation eingerichtet: ${LOGROTATE_FILE}"
 }
 
-setup_systemd() {
+write_systemd_units() {
   local oncalendar="$1"
 
-  install -d -m 755 "$SYSTEMD_DIR"
+  install -d -m 755 "${DESTDIR}${UNIT_DIR}"
 
-  cat > "$SERVICE_UNIT" <<SERVICE
+  cat > "${DESTDIR}${SERVICE_UNIT}" <<SERVICE
 [Unit]
 Description=rSynBackTux – Backup auf Synology NAS
 Documentation=https://github.com/W0rkingChr1s/rSynBackTux
@@ -611,7 +680,7 @@ Nice=10
 IOSchedulingClass=idle
 SERVICE
 
-  cat > "$TIMER_UNIT" <<TIMER
+  cat > "${DESTDIR}${TIMER_UNIT}" <<TIMER
 [Unit]
 Description=rSynBackTux – geplanter Backup-Lauf
 Documentation=https://github.com/W0rkingChr1s/rSynBackTux
@@ -626,7 +695,35 @@ Unit=rsynbacktux.service
 WantedBy=timers.target
 TIMER
 
-  chmod 644 "$SERVICE_UNIT" "$TIMER_UNIT"
+  chmod 644 "${DESTDIR}${SERVICE_UNIT}" "${DESTDIR}${TIMER_UNIT}"
+}
+
+# Im Paketmodus liefert das Paket die Units mit. Die Uhrzeit kommt dann aus
+# einem Drop-in, damit ein Paket-Update die Einstellung nicht überschreibt.
+write_timer_override() {
+  local oncalendar="$1"
+
+  install -d -m 755 "$DROPIN_DIR"
+  cat > "$DROPIN_FILE" <<OVERRIDE
+# rSynBackTux – von rsynbacktux-setup erzeugt.
+# Der leere OnCalendar-Eintrag löscht den Wert aus der mitgelieferten Unit,
+# sonst würden beide Zeiten gelten.
+[Timer]
+OnCalendar=
+OnCalendar=${oncalendar}
+OVERRIDE
+  chmod 644 "$DROPIN_FILE"
+  log "Zeitsteuerung gesetzt: ${DROPIN_FILE}"
+}
+
+setup_systemd() {
+  local oncalendar="$1"
+
+  if [[ "$PACKAGED" == true ]]; then
+    write_timer_override "$oncalendar"
+  else
+    write_systemd_units "$oncalendar"
+  fi
 
   if [[ -z "$PREFIX" ]]; then
     systemctl daemon-reload
@@ -650,6 +747,29 @@ setup_cron() {
   (crontab -l 2>/dev/null | grep -Fv "$BACKUP_SCRIPT" || true; \
     printf '%s %s\n' "$cron_expr" "$BACKUP_SCRIPT") | crontab -
   log "Cronjob eingerichtet: ${cron_expr} ${BACKUP_SCRIPT}"
+}
+
+# Schreibt die statischen Dateien des Distributionspakets in ein
+# Staging-Verzeichnis: Backup-Runner, systemd-Units, Logrotation und
+# Ausschlussliste. Die Pfade darin sind absolut, also unabhängig von
+# RSYNBACKTUX_PREFIX – das Paket landet später ohnehin unter /.
+emit_package_files() {
+  local dir="$1"
+
+  [[ -n "$dir" ]] || die "--emit-package-files benötigt ein Zielverzeichnis."
+
+  PACKAGED=true
+  PREFIX=""
+  compute_paths
+  DESTDIR="$dir"
+
+  install -d -m 755 "$dir"
+  write_backup_script
+  write_systemd_units "*-*-* ${DEFAULT_TIME}:00"
+  write_logrotate
+  write_excludes
+
+  log "Paketdateien geschrieben nach: ${dir}"
 }
 
 # Prüft Erreichbarkeit, Zugangsdaten und Schreibrechte im Zielordner.
@@ -697,7 +817,11 @@ test_connection() {
 summary() {
   local scheduler="$1" schedule="$2"
   log ""
-  log "=== Installation abgeschlossen ==="
+  if [[ "$PACKAGED" == true ]]; then
+    log "=== Einrichtung abgeschlossen ==="
+  else
+    log "=== Installation abgeschlossen ==="
+  fi
   log "Konfiguration:  ${CONF_FILE}"
   log "Ausschlüsse:    ${EXCLUDE_FILE}"
   log "Backup-Script:  ${BACKUP_SCRIPT}"
@@ -712,13 +836,24 @@ summary() {
 
 main() {
   parse_args "$@"
+
+  if [[ -n "$EMIT_DIR" ]]; then
+    emit_package_files "$EMIT_DIR"
+    return 0
+  fi
+
+  compute_paths
   require_root
 
   if [[ "$DRY_RUN" == true ]]; then
     log "[DRY RUN] Installer läuft im Testmodus – es wird nichts am System verändert."
   fi
 
-  log "=== rSynBackTux ${RSYNBACKTUX_VERSION} – Synology Backup Installer ==="
+  if [[ "$PACKAGED" == true ]]; then
+    log "=== rSynBackTux ${RSYNBACKTUX_VERSION} – Einrichtung (Paketinstallation) ==="
+  else
+    log "=== rSynBackTux ${RSYNBACKTUX_VERSION} – Synology Backup Installer ==="
+  fi
 
   local default_subdir
   default_subdir="$(sanitize_name "$(hostname -s 2>/dev/null || hostname)")"
@@ -765,14 +900,23 @@ main() {
     log "  - Passwortdatei anlegen:   ${PASSFILE}"
     log "  - Konfiguration anlegen:   ${CONF_FILE}"
     log "  - Ausschlussliste anlegen: ${EXCLUDE_FILE}"
-    log "  - Backup-Script anlegen:   ${BACKUP_SCRIPT}"
+    if [[ "$PACKAGED" == true ]]; then
+      log "  - Backup-Script:           ${BACKUP_SCRIPT} (aus dem Paket)"
+      log "  - Logrotation:             ${LOGROTATE_FILE} (aus dem Paket)"
+    else
+      log "  - Backup-Script anlegen:   ${BACKUP_SCRIPT}"
+      log "  - Logrotation einrichten:  ${LOGROTATE_FILE}"
+    fi
     log "  - Logfile anlegen:         ${LOGFILE}"
-    log "  - Logrotation einrichten:  ${LOGROTATE_FILE}"
     log "  - Ziel:                    ${OPT_USER}@${OPT_HOST}::${OPT_MODULE}/${OPT_SUBDIR}/"
     log "  - Zeitsteuerung:           ${scheduler} (${schedule_label})"
     log ""
     log "[DRY RUN] Beendet – keine Änderungen vorgenommen."
     return 0
+  fi
+
+  if [[ "$PACKAGED" == true && ! -x "$BACKUP_SCRIPT" ]]; then
+    die "Backup-Runner nicht gefunden: ${BACKUP_SCRIPT}. Ist das Paket rsynbacktux installiert?"
   fi
 
   install_rsync
@@ -789,9 +933,12 @@ main() {
 
   write_excludes
   write_config
-  write_backup_script
   write_logfile
-  write_logrotate
+  # Im Paketmodus gehören Backup-Runner und Logrotation dem Paketmanager.
+  if [[ "$PACKAGED" == false ]]; then
+    write_backup_script
+    write_logrotate
+  fi
 
   case "$scheduler" in
     systemd) setup_systemd "$oncalendar" ;;

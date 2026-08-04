@@ -1,0 +1,37 @@
+#!/bin/sh
+# rSynBackTux – postrm
+#
+# 'purge' entfernt auch Konfiguration, Passwortdatei und Logfile. Der
+# Datenbestand auf der Synology bleibt in jedem Fall unangetastet.
+set -e
+
+case "$1" in
+    remove)
+        rm -f /var/lock/rsynbacktux.lock
+        ;;
+
+    purge)
+        rm -f /etc/rsynbacktux/backup.conf
+        rm -f /root/.rsync_pass
+        rm -f /var/log/backup-to-synology.log
+        rm -f /var/log/backup-to-synology.log.*
+        rm -f /var/lock/rsynbacktux.lock
+        rm -rf /etc/systemd/system/rsynbacktux.timer.d
+        ;;
+
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+
+    *)
+        echo "postrm mit unbekanntem Argument aufgerufen: $1" >&2
+        exit 1
+        ;;
+esac
+
+if [ "$1" = remove ] || [ "$1" = purge ]; then
+    if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+        systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+fi
+
+exit 0
