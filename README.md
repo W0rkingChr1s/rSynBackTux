@@ -478,6 +478,10 @@ Einmalig einzurichten:
    mit allen Zeilenumbrüchen. Hat der Schlüssel doch eine Passphrase, kommt sie
    zusätzlich in das Secret `GPG_PASSPHRASE`.
 
+   Ein vorangestelltes UTF-8-BOM (das hängt eine PowerShell-Pipe unter Windows
+   gern an), CRLF-Zeilenenden und versehentlich mitkopierte Zeilen vor oder
+   hinter dem Block räumt der Workflow selbst weg.
+
 3. Unter *Settings → Pages* als Quelle den Branch `gh-pages` wählen. Den Branch
    legt der erste erfolgreiche Lauf an – vorher bietet GitHub ihn nicht an.
 
