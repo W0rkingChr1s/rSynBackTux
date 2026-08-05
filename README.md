@@ -465,6 +465,30 @@ Backup-Runner, systemd-Units, Logrotation und Ausschlussliste erzeugt der
 Installer selbst (`--emit-package-files`), damit Paket und Script-Installation
 nicht auseinanderlaufen. Der Paketinhalt liegt in `packaging/`.
 
+### Release
+
+Ein Release entsteht durch das Anheben der Versionsnummer auf `main`:
+
+```bash
+scripts/release.sh 2.3.0
+```
+
+Das Script setzt `VERSION` und die Version in beiden Scripten, committet und
+pusht. Alles Weitere macht GitHub Actions von selbst:
+
+1. `release.yml` erkennt die neue Version, legt den Tag `v2.3.0` an,
+2. baut Archiv und `.deb` und erzeugt das GitHub-Release samt Assets,
+3. ruft `apt-repo.yml` direkt auf, das Repository wird aktualisiert.
+
+Bleibt die Versionsnummer gleich, passiert bei einem Push nach `main` nichts –
+der Tag existiert dann bereits. Ein von Hand gesetzter Tag `v*` löst dieselbe
+Kette aus, etwa um ein Release nachzuholen.
+
+> Der direkte Aufruf von `apt-repo.yml` ist Absicht: Ereignisse, die mit
+> `GITHUB_TOKEN` erzeugt wurden, lösen keine weiteren Workflows aus. Über den
+> `release`-Trigger allein bliebe das APT-Repository beim automatischen Release
+> stehen.
+
 ### APT-Repository
 
 `.github/workflows/apt-repo.yml` baut das Paket bei jedem Release, erzeugt

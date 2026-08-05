@@ -24,6 +24,13 @@ die Auslieferung wird vor jedem Release durchgespielt.
   Wegwerfschlüssel signieren, Signatur prüfen und aus dem Ergebnis
   installieren. Bricht die Auslieferung, fällt es im Pull Request auf statt
   beim Release.
+- **Release ohne Handgriffe.** Landet auf `main` eine neue Nummer in
+  `VERSION`, legt `release.yml` den Tag selbst an, baut Archiv und `.deb`,
+  erzeugt das GitHub-Release und ruft das APT-Repository direkt auf. Der
+  direkte Aufruf ist nötig, weil mit `GITHUB_TOKEN` erzeugte Ereignisse keine
+  weiteren Workflows auslösen – über den `release`-Trigger allein bliebe die
+  Kette stehen. `scripts/release.sh` setzt nur noch die Version (auch in
+  beiden Scripten) und pusht.
 
 ### Behoben
 
@@ -32,6 +39,9 @@ die Auslieferung wird vor jedem Release durchgespielt.
   ein Terminal an der Eingabe hängt.
 - `local_networks` kommt zusätzlich mit `hostname -I` zurecht, für schlanke
   Systeme ohne iproute2 und net-tools.
+- `scripts/release.sh` benutzt vollständige Refspecs. Im Repository liegt ein
+  Tag namens `main`; `git pull origin main` war damit mehrdeutig und konnte auf
+  dem Tag statt auf dem Branch landen.
 
 ### Getestet
 

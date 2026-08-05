@@ -21,6 +21,10 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+  # Wird von release.yml direkt aufgerufen. Nötig, weil ein von GITHUB_TOKEN
+  # erzeugtes Release absichtlich keine weiteren Workflows auslöst – ohne den
+  # direkten Aufruf bliebe das Repository beim automatischen Release stehen.
+  workflow_call:
 
 concurrency:
   group: apt-repo
