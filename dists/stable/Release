@@ -1,0 +1,52 @@
+Architectures: all amd64 arm64 armhf i386
+Codename: stable
+Components: main
+Date: Wed, 05 Aug 2026 08:31:18 +0000
+Description: rSynBackTux – Synology Remote Backup for Linux Servers
+Label: rSynBackTux
+Origin: rSynBackTux
+Suite: stable
+MD5Sum:
+ 1c10503edc742689ca827851eba5f7c0             1345 main/binary-all/Packages
+ 6fffb970ec95dfcb6335cd1571dc4b4e              804 main/binary-all/Packages.gz
+ 1c10503edc742689ca827851eba5f7c0             1345 main/binary-amd64/Packages
+ 6fffb970ec95dfcb6335cd1571dc4b4e              804 main/binary-amd64/Packages.gz
+ 1c10503edc742689ca827851eba5f7c0             1345 main/binary-arm64/Packages
+ 6fffb970ec95dfcb6335cd1571dc4b4e              804 main/binary-arm64/Packages.gz
+ 1c10503edc742689ca827851eba5f7c0             1345 main/binary-armhf/Packages
+ 6fffb970ec95dfcb6335cd1571dc4b4e              804 main/binary-armhf/Packages.gz
+ 1c10503edc742689ca827851eba5f7c0             1345 main/binary-i386/Packages
+ 6fffb970ec95dfcb6335cd1571dc4b4e              804 main/binary-i386/Packages.gz
+SHA1:
+ d574ae923606ffd466eb2007080c54bcbfe740b7             1345 main/binary-all/Packages
+ f0c4d216fb5f8be0fb721a0d6fe74d2a20c5d723              804 main/binary-all/Packages.gz
+ d574ae923606ffd466eb2007080c54bcbfe740b7             1345 main/binary-amd64/Packages
+ f0c4d216fb5f8be0fb721a0d6fe74d2a20c5d723              804 main/binary-amd64/Packages.gz
+ d574ae923606ffd466eb2007080c54bcbfe740b7             1345 main/binary-arm64/Packages
+ f0c4d216fb5f8be0fb721a0d6fe74d2a20c5d723              804 main/binary-arm64/Packages.gz
+ d574ae923606ffd466eb2007080c54bcbfe740b7             1345 main/binary-armhf/Packages
+ f0c4d216fb5f8be0fb721a0d6fe74d2a20c5d723              804 main/binary-armhf/Packages.gz
+ d574ae923606ffd466eb2007080c54bcbfe740b7             1345 main/binary-i386/Packages
+ f0c4d216fb5f8be0fb721a0d6fe74d2a20c5d723              804 main/binary-i386/Packages.gz
+SHA256:
+ 6f653a1f5c96eec8d827b0968a406db6ad88956e53344fe7cda155a57c4700f9             1345 main/binary-all/Packages
+ 3148f1b8349c146cd4c15dab4bed6f7b004b09d2f2a038ae2a9e78b1a1301c06              804 main/binary-all/Packages.gz
+ 6f653a1f5c96eec8d827b0968a406db6ad88956e53344fe7cda155a57c4700f9             1345 main/binary-amd64/Packages
+ 3148f1b8349c146cd4c15dab4bed6f7b004b09d2f2a038ae2a9e78b1a1301c06              804 main/binary-amd64/Packages.gz
+ 6f653a1f5c96eec8d827b0968a406db6ad88956e53344fe7cda155a57c4700f9             1345 main/binary-arm64/Packages
+ 3148f1b8349c146cd4c15dab4bed6f7b004b09d2f2a038ae2a9e78b1a1301c06              804 main/binary-arm64/Packages.gz
+ 6f653a1f5c96eec8d827b0968a406db6ad88956e53344fe7cda155a57c4700f9             1345 main/binary-armhf/Packages
+ 3148f1b8349c146cd4c15dab4bed6f7b004b09d2f2a038ae2a9e78b1a1301c06              804 main/binary-armhf/Packages.gz
+ 6f653a1f5c96eec8d827b0968a406db6ad88956e53344fe7cda155a57c4700f9             1345 main/binary-i386/Packages
+ 3148f1b8349c146cd4c15dab4bed6f7b004b09d2f2a038ae2a9e78b1a1301c06              804 main/binary-i386/Packages.gz
+SHA512:
+ c855e5913a1010b5196fe603c364537bbf721d521dbdd3d31ea17b32721f3a303ba030c14c40d30d52466a144db6301871a7d7f6625aadc0a313b23dbae7233e             1345 main/binary-all/Packages
+ 43bc9f107c90682a353d088bba7d78b3e5e9566133ad93a993668ec1df0758b710b7d03e18bb421ed900f2f93265ca98a0523534a40ce1faadb5e47760493a48              804 main/binary-all/Packages.gz
+ c855e5913a1010b5196fe603c364537bbf721d521dbdd3d31ea17b32721f3a303ba030c14c40d30d52466a144db6301871a7d7f6625aadc0a313b23dbae7233e             1345 main/binary-amd64/Packages
+ 43bc9f107c90682a353d088bba7d78b3e5e9566133ad93a993668ec1df0758b710b7d03e18bb421ed900f2f93265ca98a0523534a40ce1faadb5e47760493a48              804 main/binary-amd64/Packages.gz
+ c855e5913a1010b5196fe603c364537bbf721d521dbdd3d31ea17b32721f3a303ba030c14c40d30d52466a144db6301871a7d7f6625aadc0a313b23dbae7233e             1345 main/binary-arm64/Packages
+ 43bc9f107c90682a353d088bba7d78b3e5e9566133ad93a993668ec1df0758b710b7d03e18bb421ed900f2f93265ca98a0523534a40ce1faadb5e47760493a48              804 main/binary-arm64/Packages.gz
+ c855e5913a1010b5196fe603c364537bbf721d521dbdd3d31ea17b32721f3a303ba030c14c40d30d52466a144db6301871a7d7f6625aadc0a313b23dbae7233e             1345 main/binary-armhf/Packages
+ 43bc9f107c90682a353d088bba7d78b3e5e9566133ad93a993668ec1df0758b710b7d03e18bb421ed900f2f93265ca98a0523534a40ce1faadb5e47760493a48              804 main/binary-armhf/Packages.gz
+ c855e5913a1010b5196fe603c364537bbf721d521dbdd3d31ea17b32721f3a303ba030c14c40d30d52466a144db6301871a7d7f6625aadc0a313b23dbae7233e             1345 main/binary-i386/Packages
+ 43bc9f107c90682a353d088bba7d78b3e5e9566133ad93a993668ec1df0758b710b7d03e18bb421ed900f2f93265ca98a0523534a40ce1faadb5e47760493a48              804 main/binary-i386/Packages.gz
