@@ -454,20 +454,42 @@ alles im Branch `gh-pages`.
 
 Einmalig einzurichten:
 
-1. Signierschlüssel erzeugen und exportieren:
+1. Signierschlüssel erzeugen:
 
    ```bash
    gpg --quick-generate-key 'rSynBackTux Repository <mail@example.com>' rsa4096 sign never
-   gpg --armor --export-secret-keys <KEY-ID>
+   gpg --list-secret-keys --keyid-format LONG    # KEY-ID ablesen
    ```
 
-2. Als Repository-Secrets hinterlegen: `GPG_PRIVATE_KEY` (der Export von oben)
-   und `GPG_PASSPHRASE` (leer lassen, falls der Schlüssel keine hat).
-3. Unter *Settings → Pages* als Quelle den Branch `gh-pages` wählen.
+   Ohne Passphrase – die Action müsste sie sonst als zweites Secret danebenliegen
+   haben, im selben Tresor. Kein Ablaufdatum, sonst bricht eines Tages bei allen
+   Clients `apt update`.
+
+2. Privaten Schlüssel als Secret `GPG_PRIVATE_KEY` hinterlegen. Am besten
+   direkt aus der Pipe, dann kann beim Kopieren nichts verlorengehen:
+
+   ```bash
+   gpg --armor --export-secret-keys <KEY-ID> \
+     | gh secret set GPG_PRIVATE_KEY --repo W0rkingChr1s/rSynBackTux
+   ```
+
+   Über die Weboberfläche muss der **komplette** Block hinein, von
+   `-----BEGIN PGP PRIVATE KEY BLOCK-----` bis `-----END PGP PRIVATE KEY BLOCK-----`,
+   mit allen Zeilenumbrüchen. Hat der Schlüssel doch eine Passphrase, kommt sie
+   zusätzlich in das Secret `GPG_PASSPHRASE`.
+
+3. Unter *Settings → Pages* als Quelle den Branch `gh-pages` wählen. Den Branch
+   legt der erste erfolgreiche Lauf an – vorher bietet GitHub ihn nicht an.
+
+Den privaten Schlüssel zusätzlich offline sichern: Geht er verloren, braucht
+jeder Server, der das Repository bereits eingebunden hat, von Hand den neuen
+Keyring, sonst schlägt `apt update` mit `NO_PUBKEY` fehl.
 
 Ohne `GPG_PRIVATE_KEY` baut der Workflow das Repository trotzdem und legt es
 als Artefakt ab, veröffentlicht aber nichts – ein unsigniertes APT-Repository
-könnten die Clients nicht überprüfen.
+könnten die Clients nicht überprüfen. Ist das Secret gesetzt, aber unbrauchbar,
+bricht der Lauf mit einer Meldung ab, die den Grund nennt (öffentlicher statt
+privatem Schlüssel, verlorene Zeilenumbrüche, leerer Export).
 
 ---
 

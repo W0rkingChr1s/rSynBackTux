@@ -52,7 +52,9 @@ jobs:
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          if [ -n "$GPG_PRIVATE_KEY" ]; then
+          # Auch ein Secret, das nur Leerzeichen oder Zeilenumbrüche enthält,
+          # gilt als nicht gesetzt – sonst scheitert erst das Signieren.
+          if [ -n "$(printf '%s' "${GPG_PRIVATE_KEY-}" | tr -d '[:space:]')" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
@@ -60,12 +62,22 @@ jobs:
           fi
 
       # Bestehenden Stand holen, damit ältere Versionen im Pool erhalten bleiben.
-      - name: Checkout gh-pages
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          path: repo
-        continue-on-error: true
+      # Beim allerersten Lauf gibt es den Branch noch nicht; das ist kein Fehler.
+      - name: Bestehendes APT-Repository holen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin gh-pages >/dev/null 2>&1; then
+            git clone --branch gh-pages --single-branch --depth 1 \
+              "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
+            # Token nicht in der Konfiguration liegen lassen
+            git -C repo remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+            echo "Bestehenden Stand aus gh-pages übernommen."
+          else
+            echo "Branch gh-pages existiert noch nicht – wird mit diesem Lauf angelegt."
+            mkdir -p repo
+          fi
 
       - name: Repository-Struktur aufbauen
         run: |
@@ -115,8 +127,46 @@ jobs:
           export GNUPGHOME
           GNUPGHOME="$(mktemp -d)"
           chmod 700 "$GNUPGHOME"
-          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+
+          key="$GPG_PRIVATE_KEY"
+          armor='-----BEGIN PGP PRIVATE KEY BLOCK-----'
+
+          if ! printf '%s' "$key" | grep -qF -- "$armor"; then
+            # Manche legen den Export base64-kodiert ab – das nehmen wir auch an.
+            if decoded="$(printf '%s' "$key" | tr -d '[:space:]' | base64 -d 2>/dev/null)" &&
+               printf '%s' "$decoded" | grep -qF -- "$armor"; then
+              key="$decoded"
+              echo "Secret war base64-kodiert und wurde dekodiert."
+            else
+              echo "::error::Das Secret GPG_PRIVATE_KEY enthält keinen ASCII-armierten privaten Schlüssel."
+              echo "Erwartet wird die vollständige Ausgabe von:" >&2
+              echo "    gpg --armor --export-secret-keys <KEY-ID>" >&2
+              echo "einschließlich der Zeilen '${armor}' und '-----END PGP PRIVATE KEY BLOCK-----'." >&2
+              echo "" >&2
+              echo "Häufige Ursachen:" >&2
+              echo "  * '--export' statt '--export-secret-keys' benutzt (öffentlicher Schlüssel)" >&2
+              echo "  * die KEY-ID passte nicht, gpg gab 'nothing exported' und damit nichts aus" >&2
+              echo "  * beim Kopieren gingen die Zeilenumbrüche verloren" >&2
+              exit 1
+            fi
+          fi
+
+          # Abschließender Zeilenumbruch: ohne ihn lehnen manche gpg-Versionen
+          # den Armor-Block ab.
+          if ! printf '%s\n' "$key" | gpg --batch --import; then
+            echo "::error::Der private Schlüssel ließ sich nicht importieren – der Armor-Block ist beschädigt."
+            echo "Am häufigsten gehen beim Kopieren die Zeilenumbrüche verloren. Im Secret muss" >&2
+            echo "der Schlüssel exakt so stehen wie in der Ausgabe von gpg, also mehrzeilig." >&2
+            echo "Zuverlässig geht das ohne Zwischenablage:" >&2
+            echo "    gpg --armor --export-secret-keys <KEY-ID> | gh secret set GPG_PRIVATE_KEY --repo ${GITHUB_REPOSITORY}" >&2
+            exit 1
+          fi
+
           KEY_ID="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ { print $5; exit }')"
+          if [ -z "$KEY_ID" ]; then
+            echo "::error::Es wurde kein privater Schlüssel importiert – das Secret enthält offenbar nur öffentliches Schlüsselmaterial. Bitte 'gpg --armor --export-secret-keys <KEY-ID>' verwenden."
+            exit 1
+          fi
           echo "Signiere mit ${KEY_ID}"
 
           cd repo
@@ -126,6 +176,13 @@ jobs:
           gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" \
             --local-user "$KEY_ID" --detach-sign --armor \
             --output "dists/${SUITE}/Release.gpg" "dists/${SUITE}/Release"
+
+          # Gegenprobe: Was die Clients später prüfen, prüfen wir hier auch.
+          if ! gpg --verify "dists/${SUITE}/InRelease" >/dev/null 2>&1; then
+            echo "::error::Die erzeugte InRelease-Signatur lässt sich nicht verifizieren."
+            exit 1
+          fi
+          echo "Signatur geprüft."
 
           # Öffentlicher Schlüssel für /etc/apt/keyrings/
           gpg --export "$KEY_ID" > rsynbacktux-archive-keyring.gpg
@@ -180,7 +237,9 @@ jobs:
         run: |
           set -euo pipefail
           cd repo
-          git init -q 2>/dev/null || true
+          if [ ! -d .git ]; then
+            git init -q -b gh-pages
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
