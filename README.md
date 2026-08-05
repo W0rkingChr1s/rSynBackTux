@@ -111,10 +111,10 @@ Paketmanager Updates, Abhängigkeiten und die Deinstallation:
 
 ```bash
 sudo install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://w0rkingchr1s.github.io/rSynBackTux/rsynbacktux-archive-keyring.asc \
+curl -fsSL https://zeitler.tech/rSynBackTux/rsynbacktux-archive-keyring.asc \
   | sudo gpg --dearmor -o /etc/apt/keyrings/rsynbacktux.gpg
 
-echo "deb [signed-by=/etc/apt/keyrings/rsynbacktux.gpg] https://w0rkingchr1s.github.io/rSynBackTux stable main" \
+echo "deb [signed-by=/etc/apt/keyrings/rsynbacktux.gpg] https://zeitler.tech/rSynBackTux stable main" \
   | sudo tee /etc/apt/sources.list.d/rsynbacktux.list
 
 sudo apt-get update
@@ -484,6 +484,10 @@ Einmalig einzurichten:
 
 3. Unter *Settings → Pages* als Quelle den Branch `gh-pages` wählen. Den Branch
    legt der erste erfolgreiche Lauf an – vorher bietet GitHub ihn nicht an.
+
+Die Adresse des Repositories fragt der Workflow bei der Pages-API ab, damit sie
+auch mit eigener Domain stimmt. Wer die Auslieferung anders löst, setzt die
+Repository-Variable `APT_REPO_URL` – sie hat Vorrang.
 
 Den privaten Schlüssel zusätzlich offline sichern: Geht er verloren, braucht
 jeder Server, der das Repository bereits eingebunden hat, von Hand den neuen
