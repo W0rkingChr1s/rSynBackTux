@@ -163,6 +163,98 @@ jobs:
           path: dist/*.deb
           if-no-files-found: error
 
+  # Baut das APT-Repository genauso wie apt-repo.yml, nur mit einem
+  # Wegwerfschlüssel und ohne zu veröffentlichen. Bricht die Auslieferung,
+  # fällt es hier auf – und nicht erst beim Release.
+  apt-repo:
+    name: APT-Repository probeweise bauen
+    runs-on: ubuntu-latest
+    needs: lint
+
+    env:
+      SUITE: stable
+      COMPONENT: main
+      ARCHITECTURES: "all amd64 arm64 armhf i386"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils dpkg-dev
+
+      - name: Build package
+        run: scripts/build-deb.sh dist
+
+      - name: Repository-Struktur aufbauen
+        run: |
+          set -euo pipefail
+          mkdir -p "repo/pool/${COMPONENT}/r/rsynbacktux"
+          cp dist/*.deb "repo/pool/${COMPONENT}/r/rsynbacktux/"
+          cd repo
+          dpkg-scanpackages --multiversion "pool/${COMPONENT}" > "${RUNNER_TEMP}/Packages"
+          for arch in ${ARCHITECTURES}; do
+            dir="dists/${SUITE}/${COMPONENT}/binary-${arch}"
+            mkdir -p "$dir"
+            cp "${RUNNER_TEMP}/Packages" "${dir}/Packages"
+            gzip -9nc "${dir}/Packages" > "${dir}/Packages.gz"
+          done
+          apt-ftparchive \
+            -o "APT::FTPArchive::Release::Origin=rSynBackTux" \
+            -o "APT::FTPArchive::Release::Suite=${SUITE}" \
+            -o "APT::FTPArchive::Release::Codename=${SUITE}" \
+            -o "APT::FTPArchive::Release::Components=${COMPONENT}" \
+            -o "APT::FTPArchive::Release::Architectures=${ARCHITECTURES}" \
+            release "dists/${SUITE}" > "${RUNNER_TEMP}/Release"
+          mv "${RUNNER_TEMP}/Release" "dists/${SUITE}/Release"
+
+      - name: Mit Wegwerfschlüssel signieren
+        run: |
+          set -euo pipefail
+          export GNUPGHOME
+          GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
+          gpg --batch --pinentry-mode loopback --passphrase '' \
+            --quick-generate-key 'rSynBackTux CI <ci@example.invalid>' rsa2048 sign never
+          KEY_ID="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ { print $5; exit }')"
+
+          cd repo
+          gpg --batch --yes --pinentry-mode loopback --passphrase '' \
+            --local-user "$KEY_ID" --clearsign \
+            --output "dists/${SUITE}/InRelease" "dists/${SUITE}/Release"
+          gpg --verify "dists/${SUITE}/InRelease"
+          gpg --export "$KEY_ID" > "${RUNNER_TEMP}/keyring.gpg"
+
+      - name: Aus dem Repository installieren
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /srv/aptci
+          sudo cp -r repo/. /srv/aptci/
+          sudo chmod -R a+rX /srv/aptci
+          sudo install -d -m 0755 /etc/apt/keyrings
+          sudo cp "${RUNNER_TEMP}/keyring.gpg" /etc/apt/keyrings/rsynbacktux-ci.gpg
+          echo "deb [signed-by=/etc/apt/keyrings/rsynbacktux-ci.gpg] file:///srv/aptci ${SUITE} ${COMPONENT}" \
+            | sudo tee /etc/apt/sources.list.d/rsynbacktux-ci.list
+
+          sudo apt-get update \
+            -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/rsynbacktux-ci.list \
+            -o Dir::Etc::sourceparts=/dev/null \
+            -o APT::Get::List-Cleanup=0
+
+          apt-cache policy rsynbacktux
+          sudo apt-get install -y rsynbacktux
+          rsynbacktux-setup --version
+          test -f /usr/share/bash-completion/completions/rsynbacktux-setup
+
+      - name: Wieder entfernen
+        run: |
+          sudo apt-get purge -y rsynbacktux
+          sudo rm -f /etc/apt/sources.list.d/rsynbacktux-ci.list \
+                     /etc/apt/keyrings/rsynbacktux-ci.gpg
+          sudo rm -rf /srv/aptci
+
   test:
     name: bats-Testsuite
     runs-on: ubuntu-latest

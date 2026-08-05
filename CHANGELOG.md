@@ -1,5 +1,42 @@
 # Changelog
 
+## v2.2.0 - 2026-08-05
+
+Die Einrichtung sucht die NAS jetzt selbst, die Shell vervollständigt mit, und
+die Auslieferung wird vor jedem Release durchgespielt.
+
+### Neu
+
+- **Suche im Netz.** Vor der ersten Frage sucht der Installer im lokalen /24
+  nach offenen rsync-Ports und fragt dort die Modulliste ab. Gefundene Geräte
+  stehen zur Auswahl, das passende Modul wird vorbelegt. Ohne zusätzliche
+  Abhängigkeiten: bash öffnet die Verbindungen selbst, die Module nennt rsync.
+  Ein Suchlauf über ein /24 dauert rund anderthalb Sekunden.
+  Nur suchen: `rsynbacktux-setup --discover`, abschalten: `--no-discover`.
+- **Tab-Vervollständigung** für bash und zsh, vom Paket mitgeliefert. Kennt
+  alle Optionen sowie die Werte von `--scheduler`, `--module`, `--user` und
+  `--time`; `--host` schlägt die bereits eingerichtete NAS vor.
+- **Ausgabe im Terminal** mit Abschnitten, Haken und hervorgehobenem Ziel. Die
+  Zusammenfassung nennt jetzt auch die nächsten Schritte (Timer-Status, Log).
+  Farben nur am echten Terminal – in Pipes, Logfiles und der Testsuite bleibt
+  die Ausgabe unverändert, `NO_COLOR` wird beachtet.
+- **CI baut das APT-Repository probeweise**: Indizes erzeugen, mit einem
+  Wegwerfschlüssel signieren, Signatur prüfen und aus dem Ergebnis
+  installieren. Bricht die Auslieferung, fällt es im Pull Request auf statt
+  beim Release.
+
+### Behoben
+
+- Die Netzsuche lief auch bei umgeleiteter Eingabe an und verbrauchte eine
+  Antwortzeile für die Auswahlliste. Sie startet jetzt nur noch, wenn wirklich
+  ein Terminal an der Eingabe hängt.
+- `local_networks` kommt zusätzlich mit `hostname -I` zurecht, für schlanke
+  Systeme ohne iproute2 und net-tools.
+
+### Getestet
+
+Testsuite auf 79 Tests gewachsen (`tests/discovery.bats`).
+
 ## v2.1.0 - 2026-08-04
 
 Bereitstellung als Debian-Paket. Die Installation über das Script bleibt

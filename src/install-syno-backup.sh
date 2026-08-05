@@ -15,7 +15,7 @@
 
 set -euo pipefail
 
-RSYNBACKTUX_VERSION="2.1.0"
+RSYNBACKTUX_VERSION="2.2.0"
 
 # Präfix für alle Zielpfade. Wird nur von der Testsuite gesetzt, damit eine
 # vollständige Installation in ein temporäres Verzeichnis laufen kann.
@@ -97,15 +97,53 @@ NON_INTERACTIVE=false
 DRY_RUN=false
 SKIP_CONNECTION_TEST=false
 RUN_NOW=""
+DISCOVER=""
+DISCOVER_ONLY=false
+# Wartezeit je Host beim Absuchen des Netzes. Im LAN antwortet ein Gerät weit
+# darunter; höher gedreht dauert der Suchlauf unnötig lange.
+DISCOVER_TIMEOUT="${RSYNBACKTUX_DISCOVER_TIMEOUT:-0.3}"
 
 DEFAULT_HOST="192.168.178.5"
 DEFAULT_MODULE="NetBackup"
 DEFAULT_USER="backup"
 DEFAULT_TIME="03:00"
 
+# --- Ausgabe ----------------------------------------------------------------
+# Farben nur, wenn wirklich ein Terminal daran hängt. In Pipes, Logfiles, der
+# Testsuite und bei gesetztem NO_COLOR bleibt die Ausgabe unverändert.
+if [[ -t 1 && -z "${NO_COLOR-}" && "${TERM-}" != "dumb" ]]; then
+  C_RESET=$'\033[0m'
+  C_BOLD=$'\033[1m'
+  C_DIM=$'\033[2m'
+  C_RED=$'\033[31m'
+  C_GREEN=$'\033[32m'
+  C_YELLOW=$'\033[33m'
+  C_CYAN=$'\033[36m'
+else
+  C_RESET=""
+  C_BOLD=""
+  C_DIM=""
+  C_RED=""
+  C_GREEN=""
+  C_YELLOW=""
+  C_CYAN=""
+fi
+
 log()  { printf '%s\n' "$*"; }
-warn() { printf 'WARNUNG: %s\n' "$*" >&2; }
-die()  { printf 'FEHLER: %s\n' "$*" >&2; exit 1; }
+warn() { printf '%sWARNUNG:%s %s\n' "$C_YELLOW" "$C_RESET" "$*" >&2; }
+die()  { printf '%sFEHLER:%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; exit 1; }
+
+# Abschnittsüberschrift
+step() { printf '\n%s%s%s\n' "$C_BOLD$C_CYAN" "$*" "$C_RESET"; }
+# Erledigt-Meldung mit Haken
+ok()   { printf '  %s✔%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
+# Aufzählung ohne Wertung
+item() { printf '  %s·%s %s\n' "$C_DIM" "$C_RESET" "$*"; }
+
+banner() {
+  printf '\n%s%s%s\n' "$C_BOLD" "  rSynBackTux ${RSYNBACKTUX_VERSION}" "$C_RESET"
+  printf '%s%s%s\n\n' "$C_DIM" "  Backups von Linux-Servern auf eine Synology NAS" "$C_RESET"
+}
 
 usage() {
   cat <<'USAGE'
@@ -116,6 +154,8 @@ Verwendung:
 
 Verbindung:
   --host HOST              Synology Host oder IP
+  --discover               Netz nach Sicherungszielen absuchen und beenden
+  --no-discover            Nicht automatisch nach der Synology suchen
   --module NAME            rsync-Modul auf der Synology (Standard: NetBackup)
   --user NAME              rsync-Benutzer (Standard: backup)
   --subdir NAME            Zielunterordner im Modul (Standard: Hostname)
@@ -170,6 +210,8 @@ parse_args() {
       --cron)             OPT_CRON="${2-}";          shift 2 ;;
       --scheduler)        OPT_SCHEDULER="${2-}";     shift 2 ;;
       --one-file-system)  OPT_ONE_FILE_SYSTEM="true"; shift ;;
+      --discover)         DISCOVER_ONLY=true;        shift ;;
+      --no-discover)      DISCOVER="no";             shift ;;
       --packaged)         PACKAGED=true;             shift ;;
       --emit-package-files) EMIT_DIR="${2-}";        shift 2 ;;
       --non-interactive)  NON_INTERACTIVE=true;      shift ;;
@@ -202,6 +244,13 @@ require_root() {
   if [[ $EUID -ne 0 ]]; then
     die "Bitte als root ausführen (z. B. via sudo)."
   fi
+}
+
+# Hängt ein echtes Terminal an der Eingabe? Bei "curl | bash" oder in der
+# Testsuite kommen die Antworten aus einer Umleitung – dann darf nichts
+# ungefragt eine Zeile verbrauchen, etwa eine Auswahlliste.
+has_tty() {
+  [[ -z "${RSYNBACKTUX_NO_TTY-}" && -r /dev/tty ]]
 }
 
 # Liest interaktive Eingaben bevorzugt vom Terminal. Das ist nötig, weil bei
@@ -319,6 +368,172 @@ prompt_yes_no() {
 
 sanitize_name() {
   printf '%s' "$1" | tr -c 'a-zA-Z0-9_.-' '_'
+}
+
+# --- Suche nach der Synology ------------------------------------------------
+# Sucht im lokalen Netz nach Hosts mit offenem rsync-Port und fragt dort die
+# Modulliste ab. Damit ist nicht nur "irgendein Gerät" gefunden, sondern eines,
+# das tatsächlich als Sicherungsziel taugt.
+#
+# Bewusst ohne nmap, avahi & Co: bash kann TCP-Verbindungen selbst öffnen,
+# die Modulabfrage macht rsync. Beides ist ohnehin vorhanden.
+
+# Ermittelt die eigenen IPv4-Netze als "IP/Präfix".
+local_networks() {
+  if command -v ip >/dev/null 2>&1; then
+    ip -4 -o addr show scope global 2>/dev/null | awk '{ print $4 }'
+  elif command -v ifconfig >/dev/null 2>&1; then
+    ifconfig 2>/dev/null | awk '/inet /{ print $2 "/24" }' | grep -v '^127\.'
+  elif command -v hostname >/dev/null 2>&1; then
+    # Letzter Ausweg für schlanke Systeme ohne iproute2 und net-tools.
+    hostname -I 2>/dev/null | tr ' ' '\n' | awk 'NF { print $1 "/24" }'
+  fi
+}
+
+# Prüft einen einzelnen Host auf offenen rsync-Port.
+probe_rsync_port() {
+  local host="$1"
+  timeout "$DISCOVER_TIMEOUT" bash -c "exec 3<>/dev/tcp/${host}/873" 2>/dev/null
+}
+
+discover_synology() {
+  local net base ip pids=() found=() networks=()
+
+  mapfile -t networks < <(local_networks || true)
+  if [[ "${#networks[@]}" -eq 0 ]]; then
+    return 1
+  fi
+
+  local scanned=""
+  for net in "${networks[@]}"; do
+    ip="${net%%/*}"
+    [[ "$ip" == 127.* ]] && continue
+    # Nur das eigene /24 absuchen – alles Größere dauert zu lange, um es
+    # jemanden interaktiv abwarten zu lassen.
+    base="${ip%.*}"
+    [[ " ${scanned} " == *" ${base} "* ]] && continue
+    scanned="${scanned} ${base}"
+
+    local tmpdir
+    tmpdir="$(mktemp -d)"
+    local last
+    for ((last = 1; last <= 254; last++)); do
+      {
+        if probe_rsync_port "${base}.${last}"; then
+          printf '%s\n' "${base}.${last}" > "${tmpdir}/${last}"
+        fi
+      } &
+      pids+=("$!")
+      # Nicht mehr als 64 Sonden gleichzeitig, sonst geht dem System die
+      # Puste aus.
+      if [[ "${#pids[@]}" -ge 64 ]]; then
+        wait "${pids[@]}" 2>/dev/null || true
+        pids=()
+      fi
+    done
+    if [[ "${#pids[@]}" -gt 0 ]]; then
+      wait "${pids[@]}" 2>/dev/null || true
+      pids=()
+    fi
+
+    local f
+    for f in "$tmpdir"/*; do
+      [[ -e "$f" ]] || continue
+      found+=("$(cat "$f")")
+    done
+    rm -rf "$tmpdir"
+  done
+
+  if [[ "${#found[@]}" -eq 0 ]]; then
+    return 1
+  fi
+
+  printf '%s\n' "${found[@]}" | sort -t. -k4 -n
+}
+
+# Fragt die Modulliste eines rsync-Daemons ab (ohne Anmeldung).
+list_rsync_modules() {
+  local host="$1"
+  rsync --contimeout=5 --list-only "rsync://${host}/" 2>/dev/null \
+    | awk 'NF { print $1 }'
+}
+
+# Sucht, zeigt die Treffer und lässt auswählen. Setzt bei Erfolg OPT_HOST und,
+# wenn eindeutig, auch OPT_MODULE.
+offer_discovery() {
+  local hosts=() host modules
+
+  step "Suche nach einem Sicherungsziel im Netz"
+  item "rsync-Port im lokalen Netz, das dauert ein paar Sekunden..."
+
+  mapfile -t hosts < <(discover_synology || true)
+
+  if [[ "${#hosts[@]}" -eq 0 ]]; then
+    item "Nichts gefunden – bitte den Host von Hand angeben."
+    return 1
+  fi
+
+  local -a host_modules=()
+  local i=1
+  for host in "${hosts[@]}"; do
+    modules="$(list_rsync_modules "$host" | paste -sd' ' - || true)"
+    host_modules+=("$modules")
+    if [[ -n "$modules" ]]; then
+      ok "$(printf '%d) %-15s Module: %s' "$i" "$host" "$modules")"
+    else
+      ok "$(printf '%d) %-15s (keine Module abfragbar)' "$i" "$host")"
+    fi
+    i=$((i + 1))
+  done
+  item "0) anderer Host"
+
+  local choice=""
+  printf '\nAuswahl [1]: '
+  read_input -r choice || choice=""
+  choice="${choice:-1}"
+
+  if [[ ! "$choice" =~ ^[0-9]+$ ]] || [[ "$choice" -lt 1 ]] || [[ "$choice" -gt "${#hosts[@]}" ]]; then
+    return 1
+  fi
+
+  OPT_HOST="${hosts[$((choice - 1))]}"
+  modules="${host_modules[$((choice - 1))]}"
+
+  # Modul nur vorbelegen, wenn die Wahl eindeutig ist: entweder gibt es genau
+  # eins, oder der Standardname ist dabei.
+  if [[ " ${modules} " == *" ${DEFAULT_MODULE} "* ]]; then
+    OPT_MODULE="${OPT_MODULE:-$DEFAULT_MODULE}"
+  elif [[ -n "$modules" && "$(printf '%s' "$modules" | wc -w)" -eq 1 ]]; then
+    OPT_MODULE="${OPT_MODULE:-$modules}"
+  fi
+
+  return 0
+}
+
+# --discover: nur suchen und anzeigen.
+run_discovery_only() {
+  local hosts=() host modules
+
+  banner
+  step "Suche nach Sicherungszielen im Netz"
+
+  mapfile -t hosts < <(discover_synology || true)
+  if [[ "${#hosts[@]}" -eq 0 ]]; then
+    item "Kein Host mit erreichbarem rsync-Dienst gefunden."
+    log ""
+    log "Auf der Synology müssen dafür aktiviert sein:"
+    item "rsync-Dienst aktivieren"
+    item "Netzwerksicherungsziel aktivieren"
+    return 1
+  fi
+
+  for host in "${hosts[@]}"; do
+    modules="$(list_rsync_modules "$host" | paste -sd' ' - || true)"
+    ok "$(printf '%-15s Module: %s' "$host" "${modules:-–}")"
+  done
+  log ""
+  log "Einrichten mit: ${0##*/} --host <IP>"
+  return 0
 }
 
 validate_inputs() {
@@ -815,23 +1030,42 @@ test_connection() {
 }
 
 summary() {
-  local scheduler="$1" schedule="$2"
+  local scheduler="$1" schedule="$2" schedule_text
+
+  case "$scheduler" in
+    systemd) schedule_text="systemd-Timer (${schedule})" ;;
+    cron)    schedule_text="Cronjob (${schedule})" ;;
+    *)       schedule_text="keine – Backup manuell starten" ;;
+  esac
+
   log ""
   if [[ "$PACKAGED" == true ]]; then
-    log "=== Einrichtung abgeschlossen ==="
+    step "=== Einrichtung abgeschlossen ==="
   else
-    log "=== Installation abgeschlossen ==="
+    step "=== Installation abgeschlossen ==="
   fi
-  log "Konfiguration:  ${CONF_FILE}"
-  log "Ausschlüsse:    ${EXCLUDE_FILE}"
-  log "Backup-Script:  ${BACKUP_SCRIPT}"
-  log "Logfile:        ${LOGFILE}"
-  log "Ziel:           ${OPT_USER}@${OPT_HOST}::${OPT_MODULE}/${OPT_SUBDIR}/"
+  printf '  %-14s %s\n' "Konfiguration:" "$CONF_FILE"
+  printf '  %-14s %s\n' "Ausschlüsse:"   "$EXCLUDE_FILE"
+  printf '  %-14s %s\n' "Backup-Script:" "$BACKUP_SCRIPT"
+  printf '  %-14s %s\n' "Logfile:"       "$LOGFILE"
+  printf '  %-14s %s%s%s\n' "Ziel:" "$C_BOLD" \
+    "${OPT_USER}@${OPT_HOST}::${OPT_MODULE}/${OPT_SUBDIR}/" "$C_RESET"
+  printf '  %-14s %s\n' "Zeitsteuerung:" "$schedule_text"
+
+  log ""
   case "$scheduler" in
-    systemd) log "Zeitsteuerung:  systemd-Timer (${schedule})" ;;
-    cron)    log "Zeitsteuerung:  Cronjob (${schedule})" ;;
-    *)       log "Zeitsteuerung:  keine – Backup manuell starten" ;;
+    systemd)
+      item "Status:  systemctl list-timers rsynbacktux.timer"
+      item "Sofort:  systemctl start rsynbacktux.service"
+      ;;
+    cron)
+      item "Status:  crontab -l"
+      ;;
+    *)
+      item "Start:   ${BACKUP_SCRIPT}"
+      ;;
   esac
+  item "Log:     ${LOGFILE}"
 }
 
 main() {
@@ -843,12 +1077,19 @@ main() {
   fi
 
   compute_paths
+
+  if [[ "$DISCOVER_ONLY" == true ]]; then
+    run_discovery_only
+    return $?
+  fi
+
   require_root
 
   if [[ "$DRY_RUN" == true ]]; then
     log "[DRY RUN] Installer läuft im Testmodus – es wird nichts am System verändert."
   fi
 
+  banner
   if [[ "$PACKAGED" == true ]]; then
     log "=== rSynBackTux ${RSYNBACKTUX_VERSION} – Einrichtung (Paketinstallation) ==="
   else
@@ -858,6 +1099,14 @@ main() {
   local default_subdir
   default_subdir="$(sanitize_name "$(hostname -s 2>/dev/null || hostname)")"
 
+  # Vor der ersten Frage einmal ins Netz schauen – aber nur, wenn ohnehin
+  # gefragt wird und der Host nicht schon feststeht.
+  if [[ "$NON_INTERACTIVE" == false && "$DRY_RUN" == false && \
+        -z "$OPT_HOST" && "$DISCOVER" != "no" ]] && has_tty; then
+    offer_discovery || true
+  fi
+
+  step "Verbindung zur Synology"
   prompt_value OPT_HOST   "Synology Host/IP"                    "$DEFAULT_HOST"   "$OPT_HOST"
   prompt_value OPT_MODULE "rsync-Modulname"                     "$DEFAULT_MODULE" "$OPT_MODULE"
   prompt_value OPT_USER   "rsync-Benutzername"                  "$DEFAULT_USER"   "$OPT_USER"

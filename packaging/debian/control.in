@@ -5,7 +5,7 @@ Priority: optional
 Architecture: all
 Depends: rsync (>= 3.0)
 Recommends: logrotate
-Suggests: cron
+Suggests: cron, bash-completion
 Installed-Size: @INSTALLED_SIZE@
 Maintainer: Christoph <38165726+W0rkingChr1s@users.noreply.github.com>
 Homepage: https://github.com/W0rkingChr1s/rSynBackTux

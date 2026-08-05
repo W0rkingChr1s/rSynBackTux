@@ -58,6 +58,8 @@ Direkter Installer (Raw-Datei):
 - Sperre gegen parallele Läufe (`flock`)
 - Korrekte Bewertung der rsync-Exitcodes (Code 24 ist kein Fehler)
 - Logrotation ab Werk, Kurzmeldung ins systemd-Journal
+- Automatische Suche nach der Synology im lokalen Netz, inklusive Modulliste
+- Tab-Vervollständigung für bash und zsh (aus dem Paket)
 - Nicht-interaktiver Modus für Konfigurationsmanagement und Massenrollout
 - Debian-Paket inklusive Handbuchseiten, Installation und Updates über `apt-get`
 - Deinstallation per Script oder `apt-get purge`, optional mit `--purge`
@@ -137,7 +139,7 @@ Ohne Repository lässt sich das `.deb` aus dem
 direkt installieren:
 
 ```bash
-sudo apt-get install ./rsynbacktux_2.1.0-1_all.deb
+sudo apt-get install ./rsynbacktux_2.2.0-1_all.deb
 sudo rsynbacktux-setup
 ```
 
@@ -157,6 +159,21 @@ sudo bash install-syno-backup.sh
 > laufen. Der Installer liest deshalb bevorzugt von `/dev/tty` und bricht
 > ansonsten mit einer klaren Meldung ab, statt sich aufzuhängen. Wer trotzdem
 > per Pipe installieren will, nutzt `--non-interactive` (siehe unten).
+
+Bevor die erste Frage kommt, sucht der Installer im lokalen Netz nach
+Sicherungszielen: Er prüft, wo der rsync-Port offen ist, und fragt dort die
+Modulliste ab. Gefundene Geräte stehen dann zur Auswahl. Das dauert wenige
+Sekunden und lässt sich mit `--no-discover` abschalten. Nur suchen, ohne etwas
+einzurichten:
+
+```bash
+sudo rsynbacktux-setup --discover
+```
+
+```
+Suche nach Sicherungszielen im Netz
+  ✔ 192.168.178.5   Module: NetBackup home video
+```
 
 Abgefragt werden:
 
@@ -192,6 +209,8 @@ Alternativ zur Umgebungsvariablen: `--password-file /pfad/zur/datei`.
 ```
 Verbindung:
   --host HOST              Synology Host oder IP
+  --discover               Netz nach Sicherungszielen absuchen und beenden
+  --no-discover            Nicht automatisch nach der Synology suchen
   --module NAME            rsync-Modul (Standard: NetBackup)
   --user NAME              rsync-Benutzer (Standard: backup)
   --subdir NAME            Zielunterordner (Standard: Hostname)
