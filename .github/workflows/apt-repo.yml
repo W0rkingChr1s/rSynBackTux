@@ -130,18 +130,31 @@ jobs:
 
           key="$GPG_PRIVATE_KEY"
           armor='-----BEGIN PGP PRIVATE KEY BLOCK-----'
+          armor_end='-----END PGP PRIVATE KEY BLOCK-----'
 
-          if ! printf '%s' "$key" | grep -qF -- "$armor"; then
+          # Legt den Schlüssel so hin, wie gpg ihn erwartet: ohne UTF-8-BOM
+          # (das hängt eine PowerShell-Pipe unter Windows gern davor und gpg
+          # lehnt den Block dann ab), ohne CR aus CRLF und ohne alles, was vor
+          # oder hinter dem Block steht.
+          normalize() {
+            tr -d '\r' \
+              | sed '1s/^\xEF\xBB\xBF//' \
+              | sed -n "/${armor}/,/${armor_end}/p"
+          }
+
+          if printf '%s\n' "$key" | grep -qF -- "$armor"; then
+            key="$(printf '%s\n' "$key" | normalize)"
+          else
             # Manche legen den Export base64-kodiert ab – das nehmen wir auch an.
             if decoded="$(printf '%s' "$key" | tr -d '[:space:]' | base64 -d 2>/dev/null)" &&
-               printf '%s' "$decoded" | grep -qF -- "$armor"; then
-              key="$decoded"
+               printf '%s\n' "$decoded" | grep -qF -- "$armor"; then
+              key="$(printf '%s\n' "$decoded" | normalize)"
               echo "Secret war base64-kodiert und wurde dekodiert."
             else
               echo "::error::Das Secret GPG_PRIVATE_KEY enthält keinen ASCII-armierten privaten Schlüssel."
               echo "Erwartet wird die vollständige Ausgabe von:" >&2
               echo "    gpg --armor --export-secret-keys <KEY-ID>" >&2
-              echo "einschließlich der Zeilen '${armor}' und '-----END PGP PRIVATE KEY BLOCK-----'." >&2
+              echo "einschließlich der Zeilen '${armor}' und '${armor_end}'." >&2
               echo "" >&2
               echo "Häufige Ursachen:" >&2
               echo "  * '--export' statt '--export-secret-keys' benutzt (öffentlicher Schlüssel)" >&2
@@ -155,10 +168,11 @@ jobs:
           # den Armor-Block ab.
           if ! printf '%s\n' "$key" | gpg --batch --import; then
             echo "::error::Der private Schlüssel ließ sich nicht importieren – der Armor-Block ist beschädigt."
-            echo "Am häufigsten gehen beim Kopieren die Zeilenumbrüche verloren. Im Secret muss" >&2
-            echo "der Schlüssel exakt so stehen wie in der Ausgabe von gpg, also mehrzeilig." >&2
-            echo "Zuverlässig geht das ohne Zwischenablage:" >&2
-            echo "    gpg --armor --export-secret-keys <KEY-ID> | gh secret set GPG_PRIVATE_KEY --repo ${GITHUB_REPOSITORY}" >&2
+            echo "Der Block ist zwar vorhanden, gpg kann ihn aber nicht lesen. Am ehesten ist" >&2
+            echo "der Inhalt beim Kopieren einzeilig geworden oder anders umkodiert worden." >&2
+            echo "Zuverlässig geht es über eine Datei:" >&2
+            echo "    gpg --armor --export-secret-keys <KEY-ID> > key.asc" >&2
+            echo "    gh secret set GPG_PRIVATE_KEY --repo ${GITHUB_REPOSITORY} < key.asc" >&2
             exit 1
           fi
 
