@@ -87,3 +87,9 @@ install_sandbox() {
 file_mode() {
   stat -c '%a' "$1"
 }
+
+# Simuliert eine Paketinstallation: legt die Dateien, die das .deb mitbringt,
+# in der Sandbox ab (Backup-Runner, systemd-Units, Logrotation, Ausschlussliste).
+stage_package_files() {
+  "$INSTALLER" --emit-package-files "$RSYNBACKTUX_PREFIX" >/dev/null
+}

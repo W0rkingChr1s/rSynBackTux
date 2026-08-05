@@ -7,6 +7,12 @@ dist/
 *.tar.gz
 *.zip
 
+# --- Debian-Paketbau / lokales APT-Repository ---
+*.deb
+*.buildinfo
+*.changes
+/repo/
+
 # --- Backup / Log output ---
 *.log
 *.bak

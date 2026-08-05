@@ -1,5 +1,43 @@
 # Changelog
 
+## v2.1.0 - 2026-08-04
+
+Bereitstellung als Debian-Paket. Die Installation über das Script bleibt
+unverändert – wer sie nutzt, muss nichts ändern.
+
+### Neu
+
+- **Debian-Paket `rsynbacktux`** für Debian, Ubuntu und Derivate:
+  `apt-get install rsynbacktux`, danach einmalig `sudo rsynbacktux-setup`.
+  Updates und Deinstallation übernimmt der Paketmanager, die Konfiguration in
+  `/etc/rsynbacktux/` bleibt dabei erhalten.
+- **APT-Repository** über GitHub Pages: `.github/workflows/apt-repo.yml` baut
+  das Paket bei jedem Release, signiert die Release-Datei mit GPG und
+  veröffentlicht `dists/`- und `pool/`-Struktur im Branch `gh-pages`. Ohne
+  hinterlegten Schlüssel wird nichts veröffentlicht.
+- **`scripts/build-deb.sh`** baut das Paket allein mit `dpkg-deb`, ohne
+  debhelper und ohne fakeroot.
+- **Handbuchseiten** `rsynbacktux-setup(8)`, `rsynbacktux-backup(8)` und
+  `rsynbacktux.conf(5)`.
+- Der Installer kennt zwei neue Optionen: `--emit-package-files DIR` schreibt
+  die statischen Paketdateien für den Paketbau, `--packaged` richtet nur
+  Konfiguration, Passwortdatei und Zeitsteuerung ein. Unter dem Namen
+  `rsynbacktux-setup` aufgerufen, schaltet er selbst in den Paketmodus.
+- CI baut das Paket, prüft es mit lintian, installiert es auf dem Runner,
+  richtet einen systemd-Timer ein und prüft, dass `purge` restlos aufräumt.
+  Die Testsuite wächst um 18 Tests auf 67.
+
+### Geändert
+
+- Im Paketmodus gehören Backup-Runner (`/usr/sbin/rsynbacktux-backup`),
+  systemd-Units, Logrotation und Ausschlussliste dem Paketmanager. Die Uhrzeit
+  landet in einem Drop-in (`rsynbacktux.timer.d/override.conf`), damit ein
+  Paket-Update sie nicht überschreibt, und eine vorhandene Ausschlussliste
+  bleibt bei erneutem `rsynbacktux-setup` unangetastet.
+- Der Timer wird nach der Paketinstallation bewusst noch nicht aktiviert –
+  ohne Konfiguration hätte ein Lauf keine Chance. Das erledigt die Einrichtung.
+- Releases enthalten zusätzlich das `.deb` als Asset.
+
 ## v2.0.0 - 2026-08-02
 
 Vollständige Überarbeitung. Die Konfiguration liegt jetzt in `/etc/rsynbacktux/`

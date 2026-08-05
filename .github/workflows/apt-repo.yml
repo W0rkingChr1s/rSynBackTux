@@ -1,0 +1,220 @@
+name: APT-Repository
+
+# Baut das Debian-Paket und veröffentlicht es als signiertes APT-Repository
+# im Branch gh-pages. Clients installieren danach mit 'apt-get install rsynbacktux'.
+#
+# Voraussetzungen (einmalig im Repository einzurichten):
+#   1. Secret GPG_PRIVATE_KEY  – privater Signierschlüssel, ASCII-armiert
+#      (gpg --armor --export-secret-keys <KEY-ID>)
+#   2. Secret GPG_PASSPHRASE   – Passphrase des Schlüssels (leer, falls keine)
+#   3. Settings > Pages > Source: Branch 'gh-pages', Ordner '/'
+#
+# Ohne Schlüssel läuft der Workflow trotzdem durch: Das Repository wird gebaut
+# und als Artefakt hinterlegt, aber nicht veröffentlicht – ein unsigniertes
+# APT-Repository wäre für die Clients nicht überprüfbar.
+
+permissions:
+  contents: write
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: apt-repo
+  cancel-in-progress: false
+
+env:
+  SUITE: stable
+  COMPONENT: main
+  ARCHITECTURES: "all amd64 arm64 armhf i386"
+
+jobs:
+  publish:
+    name: Repository bauen und veröffentlichen
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apt-utils dpkg-dev
+
+      - name: Build Debian package
+        run: scripts/build-deb.sh dist
+
+      - name: Signierschlüssel vorhanden?
+        id: gpg
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          if [ -n "$GPG_PRIVATE_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Secret GPG_PRIVATE_KEY fehlt – das APT-Repository wird gebaut, aber nicht veröffentlicht."
+          fi
+
+      # Bestehenden Stand holen, damit ältere Versionen im Pool erhalten bleiben.
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: repo
+        continue-on-error: true
+
+      - name: Repository-Struktur aufbauen
+        run: |
+          set -euo pipefail
+          mkdir -p "repo/pool/${COMPONENT}/r/rsynbacktux"
+          cp dist/*.deb "repo/pool/${COMPONENT}/r/rsynbacktux/"
+          touch repo/.nojekyll
+
+          cd repo
+          # Ein Index für alle Architekturen: Das Paket ist Architecture: all.
+          dpkg-scanpackages --multiversion "pool/${COMPONENT}" > "${RUNNER_TEMP}/Packages"
+          for arch in ${ARCHITECTURES}; do
+            dir="dists/${SUITE}/${COMPONENT}/binary-${arch}"
+            mkdir -p "$dir"
+            cp "${RUNNER_TEMP}/Packages" "${dir}/Packages"
+            gzip -9nc "${dir}/Packages" > "${dir}/Packages.gz"
+          done
+          echo "Indiziert:"
+          grep -E "^(Package|Version|Filename):" "${RUNNER_TEMP}/Packages" || true
+
+      - name: Release-Datei erzeugen
+        run: |
+          set -euo pipefail
+          cd repo
+          rm -f "dists/${SUITE}/Release" "dists/${SUITE}/InRelease" "dists/${SUITE}/Release.gpg"
+          # Erst in eine temporäre Datei schreiben: läge die Release-Datei schon
+          # im Verzeichnis, würde apt-ftparchive sie in sich selbst hashen.
+          apt-ftparchive \
+            -o "APT::FTPArchive::Release::Origin=rSynBackTux" \
+            -o "APT::FTPArchive::Release::Label=rSynBackTux" \
+            -o "APT::FTPArchive::Release::Suite=${SUITE}" \
+            -o "APT::FTPArchive::Release::Codename=${SUITE}" \
+            -o "APT::FTPArchive::Release::Components=${COMPONENT}" \
+            -o "APT::FTPArchive::Release::Architectures=${ARCHITECTURES}" \
+            -o "APT::FTPArchive::Release::Description=rSynBackTux – Synology Remote Backup for Linux Servers" \
+            release "dists/${SUITE}" > "${RUNNER_TEMP}/Release"
+          mv "${RUNNER_TEMP}/Release" "dists/${SUITE}/Release"
+          head -20 "dists/${SUITE}/Release"
+
+      - name: Release signieren
+        if: steps.gpg.outputs.available == 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          export GNUPGHOME
+          GNUPGHOME="$(mktemp -d)"
+          chmod 700 "$GNUPGHOME"
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          KEY_ID="$(gpg --list-secret-keys --with-colons | awk -F: '/^sec:/ { print $5; exit }')"
+          echo "Signiere mit ${KEY_ID}"
+
+          cd repo
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" \
+            --local-user "$KEY_ID" --clearsign \
+            --output "dists/${SUITE}/InRelease" "dists/${SUITE}/Release"
+          gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" \
+            --local-user "$KEY_ID" --detach-sign --armor \
+            --output "dists/${SUITE}/Release.gpg" "dists/${SUITE}/Release"
+
+          # Öffentlicher Schlüssel für /etc/apt/keyrings/
+          gpg --export "$KEY_ID" > rsynbacktux-archive-keyring.gpg
+          gpg --armor --export "$KEY_ID" > rsynbacktux-archive-keyring.asc
+          rm -rf "$GNUPGHOME"
+
+      - name: Startseite schreiben
+        run: |
+          set -euo pipefail
+          REPO_URL="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY##*/}"
+          cat > repo/index.html <<HTML
+          <!doctype html>
+          <html lang="de">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>rSynBackTux – APT-Repository</title>
+          <style>
+            body { font-family: system-ui, sans-serif; max-width: 46rem; margin: 2rem auto;
+                   padding: 0 1rem; line-height: 1.6; }
+            pre { background: #11111b; color: #eee; padding: 1rem; overflow-x: auto;
+                  border-radius: .4rem; }
+            code { font-family: ui-monospace, monospace; }
+          </style>
+          </head>
+          <body>
+          <h1>rSynBackTux – APT-Repository</h1>
+          <p>Backups von Linux-Servern auf eine Synology NAS.
+             <a href="https://github.com/${GITHUB_REPOSITORY}">Projektseite</a></p>
+          <h2>Einrichten</h2>
+          <pre><code>sudo install -d -m 0755 /etc/apt/keyrings
+          curl -fsSL ${REPO_URL}/rsynbacktux-archive-keyring.asc \\
+            | sudo gpg --dearmor -o /etc/apt/keyrings/rsynbacktux.gpg
+
+          echo "deb [signed-by=/etc/apt/keyrings/rsynbacktux.gpg] ${REPO_URL} ${SUITE} ${COMPONENT}" \\
+            | sudo tee /etc/apt/sources.list.d/rsynbacktux.list
+
+          sudo apt-get update
+          sudo apt-get install rsynbacktux</code></pre>
+          <h2>Einrichten der Sicherung</h2>
+          <pre><code>sudo rsynbacktux-setup</code></pre>
+          <p>Konfiguration danach in <code>/etc/rsynbacktux/backup.conf</code>,
+             Details in <code>man rsynbacktux-setup</code>.</p>
+          </body>
+          </html>
+          HTML
+
+      - name: Veröffentlichen
+        if: steps.gpg.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd repo
+          git init -q 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Keine Änderungen am Repository."
+            exit 0
+          fi
+          git commit -q -m "APT-Repository: ${GITHUB_REF_NAME}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:gh-pages
+
+      - name: Repository als Artefakt sichern
+        uses: actions/upload-artifact@v4
+        with:
+          name: apt-repo
+          path: |
+            repo
+            !repo/.git
+          if-no-files-found: error
+
+      - name: Hinweis ohne Signierschlüssel
+        if: steps.gpg.outputs.available != 'true'
+        run: |
+          {
+            echo "## APT-Repository nicht veröffentlicht"
+            echo ""
+            echo "Das Secret \`GPG_PRIVATE_KEY\` fehlt. Ein unsigniertes APT-Repository"
+            echo "können die Clients nicht überprüfen, deshalb wurde nichts gepusht."
+            echo ""
+            echo "Einrichtung:"
+            echo ""
+            echo '```bash'
+            echo "gpg --quick-generate-key 'rSynBackTux Repository <noreply@example.com>' rsa4096 sign never"
+            echo "gpg --armor --export-secret-keys <KEY-ID>   # -> Secret GPG_PRIVATE_KEY"
+            echo '```'
+            echo ""
+            echo "Danach in Settings > Pages als Quelle den Branch \`gh-pages\` wählen."
+          } >> "$GITHUB_STEP_SUMMARY"

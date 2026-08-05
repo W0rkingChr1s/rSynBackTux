@@ -31,6 +31,10 @@ Der Installer richtet ein:
 | `/var/log/backup-to-synology.log` | Logfile inklusive Logrotation |
 | systemd-Timer bzw. Cronjob | Zeitsteuerung |
 
+Aus dem Debian-Paket installiert, liegt der Runner unter
+`/usr/sbin/rsynbacktux-backup` und die Einrichtung übernimmt
+`rsynbacktux-setup`; alles Weitere ist identisch.
+
 ---
 
 ## Repository
@@ -55,7 +59,8 @@ Direkter Installer (Raw-Datei):
 - Korrekte Bewertung der rsync-Exitcodes (Code 24 ist kein Fehler)
 - Logrotation ab Werk, Kurzmeldung ins systemd-Journal
 - Nicht-interaktiver Modus für Konfigurationsmanagement und Massenrollout
-- Deinstallation per Script, optional mit `--purge`
+- Debian-Paket inklusive Handbuchseiten, Installation und Updates über `apt-get`
+- Deinstallation per Script oder `apt-get purge`, optional mit `--purge`
 - Sicherung über Standard-Dienste – kein Agent, kein Docker nötig
 
 ---
@@ -99,7 +104,47 @@ Getestet mit u. a.: Ubuntu, Debian, Rocky, AlmaLinux, RHEL, Fedora, openSUSE, Ar
 
 ## Installation
 
-### Interaktiv
+### Debian und Ubuntu: APT-Repository
+
+Für Debian, Ubuntu und Derivate gibt es ein Paket. Damit übernimmt der
+Paketmanager Updates, Abhängigkeiten und die Deinstallation:
+
+```bash
+sudo install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://w0rkingchr1s.github.io/rSynBackTux/rsynbacktux-archive-keyring.asc \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/rsynbacktux.gpg
+
+echo "deb [signed-by=/etc/apt/keyrings/rsynbacktux.gpg] https://w0rkingchr1s.github.io/rSynBackTux stable main" \
+  | sudo tee /etc/apt/sources.list.d/rsynbacktux.list
+
+sudo apt-get update
+sudo apt-get install rsynbacktux
+```
+
+Danach einmalig einrichten – dieselben Fragen und Optionen wie beim Installer:
+
+```bash
+sudo rsynbacktux-setup
+```
+
+Ein Update kommt anschließend über `sudo apt-get upgrade` mit; die
+Konfiguration in `/etc/rsynbacktux/` bleibt dabei erhalten.
+
+### Debian und Ubuntu: einzelnes Paket
+
+Ohne Repository lässt sich das `.deb` aus dem
+[Release](https://github.com/W0rkingChr1s/rSynBackTux/releases/latest)
+direkt installieren:
+
+```bash
+sudo apt-get install ./rsynbacktux_2.1.0-1_all.deb
+sudo rsynbacktux-setup
+```
+
+### Alle Distributionen: Installer-Script, interaktiv
+
+Auf Rocky, AlmaLinux, RHEL, Fedora, openSUSE, Arch und überall dort, wo kein
+`.deb` passt:
 
 ```bash
 curl -fsSL -o install-syno-backup.sh \
@@ -128,7 +173,8 @@ die Passwortdatei wird wieder entfernt.
 
 ### Nicht-interaktiv
 
-Für Ansible, Cloud-init oder Massenrollouts:
+Für Ansible, Cloud-init oder Massenrollouts (mit dem Paket genauso, dort heißt
+das Kommando `rsynbacktux-setup`):
 
 ```bash
 RSYNBACKTUX_PASSWORD='geheim' sudo -E bash install-syno-backup.sh \
@@ -346,6 +392,15 @@ sudo fuser -v /var/lock/rsynbacktux.lock
 
 ## Deinstallation
 
+Aus dem Paket installiert:
+
+```bash
+sudo apt-get remove rsynbacktux    # Zeitsteuerung und Programmdateien
+sudo apt-get purge  rsynbacktux    # zusätzlich Konfiguration, Passwort und Log
+```
+
+Mit dem Installer-Script installiert:
+
 ```bash
 sudo bash uninstall-syno-backup.sh
 ```
@@ -377,6 +432,42 @@ shellcheck -x src/*.sh scripts/*.sh tests/*.bash
 Die Testsuite installiert vollständig in ein temporäres Verzeichnis
 (`RSYNBACKTUX_PREFIX`) und ersetzt `rsync` sowie `crontab` durch Stubs – es
 werden also weder root-Rechte noch eine erreichbare NAS benötigt.
+
+### Debian-Paket bauen
+
+```bash
+sudo apt-get install -y dpkg-dev lintian
+scripts/build-deb.sh            # Ergebnis: dist/rsynbacktux_<version>-1_all.deb
+lintian dist/*.deb
+sudo apt-get install ./dist/rsynbacktux_*_all.deb
+```
+
+Backup-Runner, systemd-Units, Logrotation und Ausschlussliste erzeugt der
+Installer selbst (`--emit-package-files`), damit Paket und Script-Installation
+nicht auseinanderlaufen. Der Paketinhalt liegt in `packaging/`.
+
+### APT-Repository
+
+`.github/workflows/apt-repo.yml` baut das Paket bei jedem Release, erzeugt
+`dists/`- und `pool/`-Struktur, signiert die Release-Datei und veröffentlicht
+alles im Branch `gh-pages`.
+
+Einmalig einzurichten:
+
+1. Signierschlüssel erzeugen und exportieren:
+
+   ```bash
+   gpg --quick-generate-key 'rSynBackTux Repository <mail@example.com>' rsa4096 sign never
+   gpg --armor --export-secret-keys <KEY-ID>
+   ```
+
+2. Als Repository-Secrets hinterlegen: `GPG_PRIVATE_KEY` (der Export von oben)
+   und `GPG_PASSPHRASE` (leer lassen, falls der Schlüssel keine hat).
+3. Unter *Settings → Pages* als Quelle den Branch `gh-pages` wählen.
+
+Ohne `GPG_PRIVATE_KEY` baut der Workflow das Repository trotzdem und legt es
+als Artefakt ab, veröffentlicht aber nichts – ein unsigniertes APT-Repository
+könnten die Clients nicht überprüfen.
 
 ---
 

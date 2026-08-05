@@ -42,6 +42,17 @@ jobs:
           mv "rSynBackTux-${{ steps.vars.outputs.version }}.tar.gz" dist/
           ls -l dist
 
+      - name: Build Debian package
+        run: |
+          set -euo pipefail
+          # Der Tag gibt die Version vor; sonst hieße das Paket anders als das Release.
+          if [ "$(cat VERSION)" != "${{ steps.vars.outputs.version }}" ]; then
+            echo "VERSION ($(cat VERSION)) passt nicht zum Tag (${{ steps.vars.outputs.version }})."
+            exit 1
+          fi
+          scripts/build-deb.sh dist
+          ls -l dist/*.deb
+
       - name: Create GitHub Release
         id: release
         uses: softprops/action-gh-release@v2
@@ -56,7 +67,17 @@ jobs:
             dist/install-syno-backup.sh
             dist/uninstall-syno-backup.sh
             dist/rSynBackTux-${{ steps.vars.outputs.version }}.tar.gz
+            dist/rsynbacktux_${{ steps.vars.outputs.version }}-1_all.deb
           body: |
             Automated release for tag ${{ steps.vars.outputs.tag_name }}.
+
+            **Debian/Ubuntu:**
+
+            ```bash
+            sudo apt-get install ./rsynbacktux_${{ steps.vars.outputs.version }}-1_all.deb
+            sudo rsynbacktux-setup
+            ```
+
+            Oder über das APT-Repository (siehe README).
 
             Siehe CHANGELOG.md im Repository für Details.

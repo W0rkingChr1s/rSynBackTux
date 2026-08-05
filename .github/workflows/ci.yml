@@ -26,6 +26,9 @@ jobs:
       - name: Run ShellCheck
         run: |
           shellcheck -x src/*.sh scripts/*.sh tests/*.bash
+          # Wartungsscripte des Debian-Pakets sind POSIX-sh
+          shellcheck -s sh packaging/debian/postinst packaging/debian/prerm \
+            packaging/debian/postrm
 
       - name: Install shellharden
         run: |
@@ -78,6 +81,87 @@ jobs:
           bash -n generated-runner.sh
           shellcheck -x generated-runner.sh
           shellharden --check generated-runner.sh
+
+  package:
+    name: Debian-Paket bauen und installieren
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lintian
+
+      - name: Build package
+        run: scripts/build-deb.sh dist
+
+      - name: Lint package
+        run: lintian --fail-on error --tag-display-limit 0 dist/*.deb
+
+      - name: Install package
+        run: sudo apt-get install -y ./dist/rsynbacktux_*_all.deb
+
+      # Der Timer darf erst nach der Einrichtung laufen – vorher fehlt die
+      # Konfiguration und jeder Lauf würde scheitern.
+      - name: Timer ist nach der Installation noch nicht aktiv
+        run: |
+          if systemctl is-enabled rsynbacktux.timer >/dev/null 2>&1; then
+            echo "Timer wurde ohne Einrichtung aktiviert."
+            exit 1
+          fi
+          test -x /usr/sbin/rsynbacktux-backup
+          test -x /usr/sbin/rsynbacktux-setup
+          test -f /usr/lib/systemd/system/rsynbacktux.timer
+          test -f /etc/rsynbacktux/excludes.list
+
+      - name: Setup (Dry-Run)
+        run: |
+          sudo RSYNBACKTUX_PASSWORD=ci-dummy rsynbacktux-setup --dry-run \
+            --non-interactive --host 192.0.2.1 --subdir ci-test-server \
+            --skip-connection-test
+          test ! -e /etc/rsynbacktux/backup.conf
+
+      - name: Setup (systemd-Timer)
+        run: |
+          sudo RSYNBACKTUX_PASSWORD=ci-dummy rsynbacktux-setup \
+            --non-interactive --host 192.0.2.1 --module NetBackup --user backup \
+            --subdir ci-test-server --scheduler systemd --time 04:15 \
+            --skip-connection-test --no-run-now
+
+          test -f /etc/rsynbacktux/backup.conf
+          sudo test -f /root/.rsync_pass
+          grep -qx 'OnCalendar=\*-\*-\* 04:15:00' \
+            /etc/systemd/system/rsynbacktux.timer.d/override.conf
+          systemctl is-enabled rsynbacktux.timer
+          systemctl list-timers rsynbacktux.timer --all
+
+      - name: Purge entfernt alles wieder
+        run: |
+          sudo apt-get purge -y rsynbacktux
+          for path in /usr/sbin/rsynbacktux-backup /usr/sbin/rsynbacktux-setup \
+                      /etc/rsynbacktux /etc/logrotate.d/rsynbacktux \
+                      /etc/systemd/system/rsynbacktux.timer.d \
+                      /usr/lib/systemd/system/rsynbacktux.timer; do
+            if sudo test -e "$path"; then
+              echo "Nach purge noch vorhanden: $path"
+              exit 1
+            fi
+          done
+          if sudo test -e /root/.rsync_pass; then
+            echo "Passwortdatei überlebt purge."
+            exit 1
+          fi
+
+      - name: Paket als Artefakt sichern
+        uses: actions/upload-artifact@v4
+        with:
+          name: rsynbacktux-deb
+          path: dist/*.deb
+          if-no-files-found: error
 
   test:
     name: bats-Testsuite

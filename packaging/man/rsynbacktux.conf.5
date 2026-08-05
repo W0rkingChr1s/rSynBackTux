@@ -1,0 +1,97 @@
+.TH RSYNBACKTUX.CONF 5 "2026" "rSynBackTux" "File Formats"
+.SH NAME
+rsynbacktux.conf \- configuration for rSynBackTux backups
+.SH SYNOPSIS
+.I /etc/rsynbacktux/backup.conf
+.SH DESCRIPTION
+The file is sourced by
+.BR rsynbacktux\-backup (8)
+and therefore uses shell syntax: one
+.I NAME="value"
+assignment per line, lines starting with # are comments. It is normally written
+by
+.BR rsynbacktux\-setup (8),
+but can be edited by hand at any time; changes take effect on the next run.
+.SH OPTIONS
+.SS Connection
+.TP
+.B SYNO_HOST
+Host name or IP address of the NAS. No default, mandatory.
+.TP
+.B SYNO_MODULE
+rsync module on the NAS. Default: NetBackup.
+.TP
+.B SYNO_USER
+rsync user. Default: backup.
+.TP
+.B SYNO_SUBDIR
+Target subdirectory inside the module, usually the server name.
+.TP
+.B PASSFILE
+File holding the rsync password, mode 0600. Default: /root/.rsync_pass.
+.SS Backup
+.TP
+.B SOURCE
+Source directory. Default: / (the whole root file system).
+.TP
+.B ONE_FILE_SYSTEM
+"true" adds rsync \-x, which skips separate partitions such as /home or /var.
+Default: false.
+.TP
+.B DELETE
+"true" removes files on the target that no longer exist in the source.
+Default: true.
+.TP
+.B PRESERVE_ACLS
+"true" transfers ACLs and extended attributes. May cause trouble on the NAS.
+Default: false.
+.TP
+.B EXCLUDE_FILE
+Exclude list passed to rsync as \-\-exclude\-from, one pattern per line.
+Default: /etc/rsynbacktux/excludes.list.
+.TP
+.B EXCLUDE_REMOTE_MOUNTS
+"true" excludes NFS, CIFS and SSHFS mounts detected at run time.
+Default: true.
+.SS Behaviour
+.TP
+.B VERBOSE
+"true" logs every transferred file, which makes the log grow quickly.
+Default: false.
+.TP
+.B TOLERATE_PARTIAL
+"true" treats rsync exit code 23 as a warning instead of a failure.
+Default: false.
+.TP
+.B BANDWIDTH_LIMIT
+Limit in KB/s, empty means unlimited.
+.TP
+.B RSYNC_TIMEOUT
+I/O timeout in seconds. Default: 600.
+.SS Paths
+.TP
+.B LOGFILE
+Log file. Default: /var/log/backup\-to\-synology.log.
+.TP
+.B LOCKFILE
+Lock file guarding against parallel runs.
+Default: /var/lock/rsynbacktux.lock.
+.SH EXAMPLE
+.nf
+.RS
+SYNO_HOST=192.168.178.5
+SYNO_MODULE=NetBackup
+SYNO_USER=backup
+SYNO_SUBDIR=webserver
+SOURCE=/
+DELETE="true"
+BANDWIDTH_LIMIT="20000"
+RSYNC_TIMEOUT="600"
+.RE
+.fi
+.SH SEE ALSO
+.BR rsynbacktux\-backup (8),
+.BR rsynbacktux\-setup (8),
+.BR rsync (1)
+.SH AUTHOR
+https://github.com/W0rkingChr1s/rSynBackTux
