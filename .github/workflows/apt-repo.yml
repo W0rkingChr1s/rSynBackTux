@@ -15,6 +15,7 @@ name: APT-Repository
 
 permissions:
   contents: write
+  pages: read
 
 on:
   release:
@@ -184,9 +185,17 @@ jobs:
           echo "Signiere mit ${KEY_ID}"
 
           cd repo
-          gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" \
-            --local-user "$KEY_ID" --clearsign \
-            --output "dists/${SUITE}/InRelease" "dists/${SUITE}/Release"
+          if ! gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" \
+              --local-user "$KEY_ID" --clearsign \
+              --output "dists/${SUITE}/InRelease" "dists/${SUITE}/Release"; then
+            echo "::error::Signieren fehlgeschlagen. Ist der Schlüssel mit einer Passphrase geschützt?"
+            echo "Dann muss sie zusätzlich als Secret GPG_PASSPHRASE hinterlegt werden:" >&2
+            echo "    gh secret set GPG_PASSPHRASE --repo ${GITHUB_REPOSITORY}" >&2
+            echo "" >&2
+            echo "Alternativ die Passphrase vom Schlüssel entfernen und neu exportieren:" >&2
+            echo "    gpg --edit-key <KEY-ID>   # dort: passwd, neue Passphrase leer lassen, save" >&2
+            exit 1
+          fi
           gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE}" \
             --local-user "$KEY_ID" --detach-sign --armor \
             --output "dists/${SUITE}/Release.gpg" "dists/${SUITE}/Release"
@@ -203,10 +212,42 @@ jobs:
           gpg --armor --export "$KEY_ID" > rsynbacktux-archive-keyring.asc
           rm -rf "$GNUPGHOME"
 
+      # Die Adresse steht nicht fest: Mit einer eigenen Domain liefert Pages das
+      # Repository unter dieser aus, nicht unter <owner>.github.io. Die Pages-API
+      # kennt die tatsächliche Adresse, deshalb fragen wir sie dort ab.
+      - name: Repository-Adresse bestimmen
+        id: url
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OVERRIDE: ${{ vars.APT_REPO_URL }}
+        run: |
+          set -uo pipefail
+          url="$OVERRIDE"
+
+          if [ -z "$url" ]; then
+            url="$(curl -sf \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "Accept: application/vnd.github+json" \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/pages" \
+              | jq -r '.html_url // empty')" || url=""
+          fi
+
+          if [ -z "$url" ]; then
+            # Pages noch nicht eingerichtet: Standardadresse annehmen.
+            owner="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
+            url="https://${owner}.github.io/${GITHUB_REPOSITORY##*/}"
+            echo "Pages-Adresse nicht abrufbar, nehme Standard an."
+          fi
+
+          url="${url%/}"
+          echo "Repository-Adresse: ${url}"
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+
       - name: Startseite schreiben
+        env:
+          REPO_URL: ${{ steps.url.outputs.url }}
         run: |
           set -euo pipefail
-          REPO_URL="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY##*/}"
           cat > repo/index.html <<HTML
           <!doctype html>
           <html lang="de">
