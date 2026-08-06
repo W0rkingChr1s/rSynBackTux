@@ -50,6 +50,12 @@ printf 'Baue rsynbacktux %s ...\n' "$DEB_VERSION"
 # 'rsynbacktux-setup' schaltet er automatisch in den Paketmodus.
 install -D -m 755 "$INSTALLER" "${PKG_DIR}/usr/sbin/rsynbacktux-setup"
 
+# --- Vervollständigung für die Shell -----------------------------------------
+install -D -m 644 "${REPO_ROOT}/packaging/completion/rsynbacktux-setup.bash" \
+  "${PKG_DIR}/usr/share/bash-completion/completions/rsynbacktux-setup"
+install -D -m 644 "${REPO_ROOT}/packaging/completion/_rsynbacktux-setup" \
+  "${PKG_DIR}/usr/share/zsh/vendor-completions/_rsynbacktux-setup"
+
 # --- Dokumentation -----------------------------------------------------------
 DOC_DIR="${PKG_DIR}/usr/share/doc/rsynbacktux"
 install -d -m 755 "$DOC_DIR"

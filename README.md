@@ -58,6 +58,8 @@ Direkter Installer (Raw-Datei):
 - Sperre gegen parallele Läufe (`flock`)
 - Korrekte Bewertung der rsync-Exitcodes (Code 24 ist kein Fehler)
 - Logrotation ab Werk, Kurzmeldung ins systemd-Journal
+- Automatische Suche nach der Synology im lokalen Netz, inklusive Modulliste
+- Tab-Vervollständigung für bash und zsh (aus dem Paket)
 - Nicht-interaktiver Modus für Konfigurationsmanagement und Massenrollout
 - Debian-Paket inklusive Handbuchseiten, Installation und Updates über `apt-get`
 - Deinstallation per Script oder `apt-get purge`, optional mit `--purge`
@@ -137,7 +139,7 @@ Ohne Repository lässt sich das `.deb` aus dem
 direkt installieren:
 
 ```bash
-sudo apt-get install ./rsynbacktux_2.1.0-1_all.deb
+sudo apt-get install ./rsynbacktux_2.2.0-1_all.deb
 sudo rsynbacktux-setup
 ```
 
@@ -157,6 +159,21 @@ sudo bash install-syno-backup.sh
 > laufen. Der Installer liest deshalb bevorzugt von `/dev/tty` und bricht
 > ansonsten mit einer klaren Meldung ab, statt sich aufzuhängen. Wer trotzdem
 > per Pipe installieren will, nutzt `--non-interactive` (siehe unten).
+
+Bevor die erste Frage kommt, sucht der Installer im lokalen Netz nach
+Sicherungszielen: Er prüft, wo der rsync-Port offen ist, und fragt dort die
+Modulliste ab. Gefundene Geräte stehen dann zur Auswahl. Das dauert wenige
+Sekunden und lässt sich mit `--no-discover` abschalten. Nur suchen, ohne etwas
+einzurichten:
+
+```bash
+sudo rsynbacktux-setup --discover
+```
+
+```
+Suche nach Sicherungszielen im Netz
+  ✔ 192.168.178.5   Module: NetBackup home video
+```
 
 Abgefragt werden:
 
@@ -192,6 +209,8 @@ Alternativ zur Umgebungsvariablen: `--password-file /pfad/zur/datei`.
 ```
 Verbindung:
   --host HOST              Synology Host oder IP
+  --discover               Netz nach Sicherungszielen absuchen und beenden
+  --no-discover            Nicht automatisch nach der Synology suchen
   --module NAME            rsync-Modul (Standard: NetBackup)
   --user NAME              rsync-Benutzer (Standard: backup)
   --subdir NAME            Zielunterordner (Standard: Hostname)
@@ -445,6 +464,30 @@ sudo apt-get install ./dist/rsynbacktux_*_all.deb
 Backup-Runner, systemd-Units, Logrotation und Ausschlussliste erzeugt der
 Installer selbst (`--emit-package-files`), damit Paket und Script-Installation
 nicht auseinanderlaufen. Der Paketinhalt liegt in `packaging/`.
+
+### Release
+
+Ein Release entsteht durch das Anheben der Versionsnummer auf `main`:
+
+```bash
+scripts/release.sh 2.3.0
+```
+
+Das Script setzt `VERSION` und die Version in beiden Scripten, committet und
+pusht. Alles Weitere macht GitHub Actions von selbst:
+
+1. `release.yml` erkennt die neue Version, legt den Tag `v2.3.0` an,
+2. baut Archiv und `.deb` und erzeugt das GitHub-Release samt Assets,
+3. ruft `apt-repo.yml` direkt auf, das Repository wird aktualisiert.
+
+Bleibt die Versionsnummer gleich, passiert bei einem Push nach `main` nichts –
+der Tag existiert dann bereits. Ein von Hand gesetzter Tag `v*` löst dieselbe
+Kette aus, etwa um ein Release nachzuholen.
+
+> Der direkte Aufruf von `apt-repo.yml` ist Absicht: Ereignisse, die mit
+> `GITHUB_TOKEN` erzeugt wurden, lösen keine weiteren Workflows aus. Über den
+> `release`-Trigger allein bliebe das APT-Repository beim automatischen Release
+> stehen.
 
 ### APT-Repository
 

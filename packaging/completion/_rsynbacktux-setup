@@ -1,0 +1,29 @@
+#compdef rsynbacktux-setup
+# zsh-Vervollständigung für rsynbacktux-setup
+
+_rsynbacktux-setup() {
+  _arguments -s \
+    '--host[Synology Host oder IP]:Host:_hosts' \
+    '--discover[Netz nach Sicherungszielen absuchen und beenden]' \
+    '--no-discover[Nicht automatisch nach der Synology suchen]' \
+    '--module[rsync-Modul auf der Synology]:Modul:(NetBackup)' \
+    '--user[rsync-Benutzer]:Benutzer:(backup)' \
+    '--subdir[Zielunterordner im Modul]:Unterordner:' \
+    '--password-file[Datei mit dem rsync-Passwort]:Datei:_files' \
+    '--source[Quellverzeichnis]:Verzeichnis:_directories' \
+    '--one-file-system[Dateisystemgrenzen nicht überschreiten]' \
+    '--scheduler[Art der Zeitsteuerung]:Modus:(auto systemd cron none)' \
+    '--time[Startzeit des täglichen Laufs]:Uhrzeit (HH\:MM):' \
+    '--oncalendar[systemd-OnCalendar-Ausdruck]:Ausdruck:' \
+    '--cron[Cron-Ausdruck]:Ausdruck:' \
+    '--non-interactive[Keine Rückfragen]' \
+    '--run-now[Nach der Einrichtung sofort sichern]' \
+    '--no-run-now[Kein Testlauf nach der Einrichtung]' \
+    '--skip-connection-test[Verbindungstest überspringen]' \
+    '--dry-run[Nichts verändern, nur anzeigen]' \
+    '--packaged[Dateien stammen aus dem Distributionspaket]' \
+    '(- *)--help[Hilfe anzeigen]' \
+    '(- *)--version[Version ausgeben]'
+}
+
+_rsynbacktux-setup "$@"

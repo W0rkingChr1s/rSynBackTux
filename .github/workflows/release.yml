@@ -1,16 +1,100 @@
 name: Release
+
+# Ein Release entsteht automatisch, sobald auf main eine neue Versionsnummer
+# in der VERSION-Datei landet: Tag anlegen, Paket bauen, GitHub-Release samt
+# Assets erzeugen und das APT-Repository aktualisieren.
+#
+# Ein von Hand gesetzter Tag (v*) funktioniert weiterhin – etwa um ein Release
+# nachzuholen.
+#
+# Warum das APT-Repository hier direkt aufgerufen wird statt über den
+# release-Trigger: Ereignisse, die mit GITHUB_TOKEN erzeugt wurden, lösen
+# absichtlich keine weiteren Workflows aus. Die Kette muss deshalb in einem
+# Lauf zusammenhängen.
+
 permissions:
   contents: write
-  pull-requests: write
+  pages: read
+
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
+  vars:
+    name: Version bestimmen
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+      tag_name: ${{ steps.vars.outputs.tag_name }}
+      needs_tag: ${{ steps.vars.outputs.needs_tag }}
+      skip: ${{ steps.vars.outputs.skip }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Version und Tag ermitteln
+        id: vars
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            # Von Hand gesetzter Tag gibt die Version vor.
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG_NAME#v}"
+            NEEDS_TAG=false
+          else
+            # Push auf main: Die VERSION-Datei entscheidet.
+            VERSION="$(cat VERSION)"
+            TAG_NAME="v${VERSION}"
+            NEEDS_TAG=true
+          fi
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Ungültige Version: ${VERSION} (erwartet X.Y.Z)"
+            exit 1
+          fi
+
+          # Der Installer muss dieselbe Version melden, sonst steht auf dem
+          # Paket etwas anderes drauf als drin ist.
+          expected="rSynBackTux ${VERSION}"
+          actual="$(src/install-syno-backup.sh --version)"
+          if [[ "$expected" != "$actual" ]]; then
+            echo "::error::VERSION (${expected}) und Installer (${actual}) weichen ab."
+            exit 1
+          fi
+
+          SKIP=false
+          if git rev-parse -q --verify "refs/tags/${TAG_NAME}" >/dev/null 2>&1; then
+            if [[ "$NEEDS_TAG" == true ]]; then
+              # Version unverändert – dieser Push ist kein Release.
+              echo "Tag ${TAG_NAME} existiert bereits, kein neues Release."
+              SKIP=true
+            fi
+          fi
+
+          {
+            echo "version=${VERSION}"
+            echo "tag_name=${TAG_NAME}"
+            echo "needs_tag=${NEEDS_TAG}"
+            echo "skip=${SKIP}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Version ${VERSION}, Tag ${TAG_NAME}, neuer Tag nötig: ${NEEDS_TAG}, überspringen: ${SKIP}"
+
   create-release:
-    name: Create GitHub Release
+    name: Release erstellen
+    needs: vars
+    if: needs.vars.outputs.skip != 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -19,14 +103,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract version from tag
-        id: vars
+      - name: Tag anlegen
+        if: needs.vars.outputs.needs_tag == 'true'
         run: |
-          TAG_NAME="${GITHUB_REF##*/}"        # z.B. v1.0.2
-          VERSION="${TAG_NAME#v}"             # z.B. 1.0.2
-          echo "tag_name=${TAG_NAME}" >> "$GITHUB_OUTPUT"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Using TAG_NAME=${TAG_NAME}, VERSION=${VERSION}"
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ needs.vars.outputs.tag_name }}" \
+            -m "Release ${{ needs.vars.outputs.version }}"
+          git push origin "refs/tags/${{ needs.vars.outputs.tag_name }}"
 
       - name: Create dist bundle
         run: |
@@ -38,46 +123,54 @@ jobs:
             if [ -f "$f" ]; then cp "$f" dist/; fi
           done
           # Archiv außerhalb von dist/ erzeugen, sonst packt tar sich selbst mit ein
-          tar czf "rSynBackTux-${{ steps.vars.outputs.version }}.tar.gz" -C dist .
-          mv "rSynBackTux-${{ steps.vars.outputs.version }}.tar.gz" dist/
+          tar czf "rSynBackTux-${{ needs.vars.outputs.version }}.tar.gz" -C dist .
+          mv "rSynBackTux-${{ needs.vars.outputs.version }}.tar.gz" dist/
           ls -l dist
 
       - name: Build Debian package
         run: |
           set -euo pipefail
-          # Der Tag gibt die Version vor; sonst hieße das Paket anders als das Release.
-          if [ "$(cat VERSION)" != "${{ steps.vars.outputs.version }}" ]; then
-            echo "VERSION ($(cat VERSION)) passt nicht zum Tag (${{ steps.vars.outputs.version }})."
-            exit 1
-          fi
           scripts/build-deb.sh dist
           ls -l dist/*.deb
 
       - name: Create GitHub Release
-        id: release
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.vars.outputs.tag_name }}
-          name: "rSynBackTux v${{ steps.vars.outputs.version }}"
+          tag_name: ${{ needs.vars.outputs.tag_name }}
+          name: "rSynBackTux v${{ needs.vars.outputs.version }}"
           draft: false
           prerelease: false
           files: |
             dist/install-syno-backup.sh
             dist/uninstall-syno-backup.sh
-            dist/rSynBackTux-${{ steps.vars.outputs.version }}.tar.gz
-            dist/rsynbacktux_${{ steps.vars.outputs.version }}-1_all.deb
+            dist/rSynBackTux-${{ needs.vars.outputs.version }}.tar.gz
+            dist/rsynbacktux_${{ needs.vars.outputs.version }}-1_all.deb
           body: |
-            Automated release for tag ${{ steps.vars.outputs.tag_name }}.
+            Automatisches Release für ${{ needs.vars.outputs.tag_name }}.
 
-            **Debian/Ubuntu:**
+            **Debian/Ubuntu über das APT-Repository:**
 
             ```bash
-            sudo apt-get install ./rsynbacktux_${{ steps.vars.outputs.version }}-1_all.deb
+            sudo apt-get update && sudo apt-get install rsynbacktux
             sudo rsynbacktux-setup
             ```
 
-            Oder über das APT-Repository (siehe README).
+            **Oder das Paket direkt:**
+
+            ```bash
+            sudo apt-get install ./rsynbacktux_${{ needs.vars.outputs.version }}-1_all.deb
+            ```
 
             Siehe CHANGELOG.md im Repository für Details.
+
+  publish-apt:
+    name: APT-Repository aktualisieren
+    needs: [vars, create-release]
+    if: needs.vars.outputs.skip != 'true'
+    permissions:
+      contents: write
+      pages: read
+    secrets: inherit
+    uses: ./.github/workflows/apt-repo.yml
