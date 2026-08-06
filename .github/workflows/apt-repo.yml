@@ -244,6 +244,13 @@ jobs:
           fi
 
           url="${url%/}"
+
+          # Die Pages-API meldet http://, solange für eine eigene Domain kein
+          # HTTPS erzwungen ist. Ein APT-Repository über Klartext-HTTP gibt
+          # jedem Mitleser preis, was installiert wird – GitHub liefert die
+          # Seite ohnehin auch über TLS aus.
+          url="${url/#http:\/\//https://}"
+
           echo "Repository-Adresse: ${url}"
           echo "url=${url}" >> "$GITHUB_OUTPUT"
 
