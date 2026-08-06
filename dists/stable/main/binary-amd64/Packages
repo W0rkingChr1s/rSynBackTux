@@ -30,3 +30,35 @@ Description: rsync backups from Linux servers to a Synology NAS
  ("vanished files") is treated as success, which makes unattended runs on a
  live system reliable.
 
+Package: rsynbacktux
+Version: 2.2.0-1
+Architecture: all
+Maintainer: Christoph <38165726+W0rkingChr1s@users.noreply.github.com>
+Installed-Size: 188
+Depends: rsync (>= 3.0)
+Recommends: logrotate
+Suggests: cron, bash-completion
+Filename: pool/main/r/rsynbacktux/rsynbacktux_2.2.0-1_all.deb
+Size: 26932
+MD5sum: 66d8d6973b2a872bfd5ca50786ba048f
+SHA1: 5930d2b9bdcaf59f128e21aac1385d24ef9b3908
+SHA256: 0ed54edcfe222c09f676637d66ab1c65b5ddf6d67476b80bd0a48e5142533b89
+Section: admin
+Priority: optional
+Homepage: https://github.com/W0rkingChr1s/rSynBackTux
+Description: rsync backups from Linux servers to a Synology NAS
+ rSynBackTux backs up a Linux server to a Synology NAS over the NAS built-in
+ rsync daemon. No agent and no additional software is needed on the NAS side,
+ only the rsync service and a shared folder configured as a network backup
+ destination.
+ .
+ The package ships the backup runner, a systemd service and timer, a logrotate
+ snippet and the rsync exclude list. Run "rsynbacktux-setup" once after the
+ installation to configure the NAS host, the rsync module, the credentials and
+ the schedule; everything else is read from /etc/rsynbacktux/backup.conf at
+ run time.
+ .
+ Backups are incremental, guarded against parallel runs and rsync exit code 24
+ ("vanished files") is treated as success, which makes unattended runs on a
+ live system reliable.
+

@@ -18,10 +18,10 @@
    <a href="https://github.com/W0rkingChr1s/rSynBackTux">Projektseite</a></p>
 <h2>Einrichten</h2>
 <pre><code>sudo install -d -m 0755 /etc/apt/keyrings
-curl -fsSL https://w0rkingchr1s.github.io/rSynBackTux/rsynbacktux-archive-keyring.asc \
+curl -fsSL http://zeitler.tech/rSynBackTux/rsynbacktux-archive-keyring.asc \
   | sudo gpg --dearmor -o /etc/apt/keyrings/rsynbacktux.gpg
 
-echo "deb [signed-by=/etc/apt/keyrings/rsynbacktux.gpg] https://w0rkingchr1s.github.io/rSynBackTux stable main" \
+echo "deb [signed-by=/etc/apt/keyrings/rsynbacktux.gpg] http://zeitler.tech/rSynBackTux stable main" \
   | sudo tee /etc/apt/sources.list.d/rsynbacktux.list
 
 sudo apt-get update
