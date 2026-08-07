@@ -33,7 +33,7 @@ jobs:
       - name: Install shellharden
         run: |
           wget -qO shellharden.tar.gz \
-            https://github.com/anordal/shellharden/releases/latest/download/shellharden-x86_64-unknown-linux-gnu.tar.gz
+            https://github.com/anordal/shellharden/releases/download/v4.3.2/shellharden-x86_64-unknown-linux-gnu.tar.gz
           sudo tar -xzf shellharden.tar.gz -C /usr/local/bin shellharden
           rm shellharden.tar.gz
           shellharden --version
@@ -59,7 +59,7 @@ jobs:
       - name: Install shellharden
         run: |
           wget -qO shellharden.tar.gz \
-            https://github.com/anordal/shellharden/releases/latest/download/shellharden-x86_64-unknown-linux-gnu.tar.gz
+            https://github.com/anordal/shellharden/releases/download/v4.3.2/shellharden-x86_64-unknown-linux-gnu.tar.gz
           sudo tar -xzf shellharden.tar.gz -C /usr/local/bin shellharden
           rm shellharden.tar.gz
 
