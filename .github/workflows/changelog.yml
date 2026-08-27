@@ -126,7 +126,7 @@ jobs:
           } > CHANGELOG.md
 
       - name: Commit CHANGELOG.md
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "Update CHANGELOG.md for v${{ github.sha }}"
           file_pattern: CHANGELOG.md
