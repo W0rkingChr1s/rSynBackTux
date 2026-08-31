@@ -1,0 +1,15 @@
+# Hält die in .github/workflows/*.yml gepinnten Action-Versionen aktuell.
+# Dieses Repo enthält keine Paket-Manager-Abhängigkeiten (nur Shell-Skripte),
+# daher ist "github-actions" das einzige relevante Ecosystem.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "chore(ci)"
