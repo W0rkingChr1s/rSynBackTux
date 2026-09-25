@@ -3,7 +3,7 @@ Version: @VERSION@
 Section: admin
 Priority: optional
 Architecture: all
-Depends: rsync (>= 3.0)
+Depends: rsync (>= 3.4.0)
 Recommends: logrotate
 Suggests: cron, bash-completion
 Installed-Size: @INSTALLED_SIZE@
