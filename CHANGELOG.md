@@ -1,5 +1,152 @@
 # Changelog
 
+## v2.2.0 - 2026-08-05
+
+Die Einrichtung sucht die NAS jetzt selbst, die Shell vervollständigt mit, und
+die Auslieferung wird vor jedem Release durchgespielt.
+
+### Neu
+
+- **Suche im Netz.** Vor der ersten Frage sucht der Installer im lokalen /24
+  nach offenen rsync-Ports und fragt dort die Modulliste ab. Gefundene Geräte
+  stehen zur Auswahl, das passende Modul wird vorbelegt. Ohne zusätzliche
+  Abhängigkeiten: bash öffnet die Verbindungen selbst, die Module nennt rsync.
+  Ein Suchlauf über ein /24 dauert rund anderthalb Sekunden.
+  Nur suchen: `rsynbacktux-setup --discover`, abschalten: `--no-discover`.
+- **Tab-Vervollständigung** für bash und zsh, vom Paket mitgeliefert. Kennt
+  alle Optionen sowie die Werte von `--scheduler`, `--module`, `--user` und
+  `--time`; `--host` schlägt die bereits eingerichtete NAS vor.
+- **Ausgabe im Terminal** mit Abschnitten, Haken und hervorgehobenem Ziel. Die
+  Zusammenfassung nennt jetzt auch die nächsten Schritte (Timer-Status, Log).
+  Farben nur am echten Terminal – in Pipes, Logfiles und der Testsuite bleibt
+  die Ausgabe unverändert, `NO_COLOR` wird beachtet.
+- **CI baut das APT-Repository probeweise**: Indizes erzeugen, mit einem
+  Wegwerfschlüssel signieren, Signatur prüfen und aus dem Ergebnis
+  installieren. Bricht die Auslieferung, fällt es im Pull Request auf statt
+  beim Release.
+- **Release ohne Handgriffe.** Landet auf `main` eine neue Nummer in
+  `VERSION`, legt `release.yml` den Tag selbst an, baut Archiv und `.deb`,
+  erzeugt das GitHub-Release und ruft das APT-Repository direkt auf. Der
+  direkte Aufruf ist nötig, weil mit `GITHUB_TOKEN` erzeugte Ereignisse keine
+  weiteren Workflows auslösen – über den `release`-Trigger allein bliebe die
+  Kette stehen. `scripts/release.sh` setzt nur noch die Version (auch in
+  beiden Scripten) und pusht.
+
+### Behoben
+
+- Die Netzsuche lief auch bei umgeleiteter Eingabe an und verbrauchte eine
+  Antwortzeile für die Auswahlliste. Sie startet jetzt nur noch, wenn wirklich
+  ein Terminal an der Eingabe hängt.
+- `local_networks` kommt zusätzlich mit `hostname -I` zurecht, für schlanke
+  Systeme ohne iproute2 und net-tools.
+- `scripts/release.sh` benutzt vollständige Refspecs. Im Repository liegt ein
+  Tag namens `main`; `git pull origin main` war damit mehrdeutig und konnte auf
+  dem Tag statt auf dem Branch landen.
+
+### Getestet
+
+Testsuite auf 79 Tests gewachsen (`tests/discovery.bats`).
+
+## v2.1.0 - 2026-08-04
+
+Bereitstellung als Debian-Paket. Die Installation über das Script bleibt
+unverändert – wer sie nutzt, muss nichts ändern.
+
+### Neu
+
+- **Debian-Paket `rsynbacktux`** für Debian, Ubuntu und Derivate:
+  `apt-get install rsynbacktux`, danach einmalig `sudo rsynbacktux-setup`.
+  Updates und Deinstallation übernimmt der Paketmanager, die Konfiguration in
+  `/etc/rsynbacktux/` bleibt dabei erhalten.
+- **APT-Repository** über GitHub Pages: `.github/workflows/apt-repo.yml` baut
+  das Paket bei jedem Release, signiert die Release-Datei mit GPG und
+  veröffentlicht `dists/`- und `pool/`-Struktur im Branch `gh-pages`. Ohne
+  hinterlegten Schlüssel wird nichts veröffentlicht.
+- **`scripts/build-deb.sh`** baut das Paket allein mit `dpkg-deb`, ohne
+  debhelper und ohne fakeroot.
+- **Handbuchseiten** `rsynbacktux-setup(8)`, `rsynbacktux-backup(8)` und
+  `rsynbacktux.conf(5)`.
+- Der Installer kennt zwei neue Optionen: `--emit-package-files DIR` schreibt
+  die statischen Paketdateien für den Paketbau, `--packaged` richtet nur
+  Konfiguration, Passwortdatei und Zeitsteuerung ein. Unter dem Namen
+  `rsynbacktux-setup` aufgerufen, schaltet er selbst in den Paketmodus.
+- CI baut das Paket, prüft es mit lintian, installiert es auf dem Runner,
+  richtet einen systemd-Timer ein und prüft, dass `purge` restlos aufräumt.
+  Die Testsuite wächst um 18 Tests auf 67.
+
+### Geändert
+
+- Im Paketmodus gehören Backup-Runner (`/usr/sbin/rsynbacktux-backup`),
+  systemd-Units, Logrotation und Ausschlussliste dem Paketmanager. Die Uhrzeit
+  landet in einem Drop-in (`rsynbacktux.timer.d/override.conf`), damit ein
+  Paket-Update sie nicht überschreibt, und eine vorhandene Ausschlussliste
+  bleibt bei erneutem `rsynbacktux-setup` unangetastet.
+- Der Timer wird nach der Paketinstallation bewusst noch nicht aktiviert –
+  ohne Konfiguration hätte ein Lauf keine Chance. Das erledigt die Einrichtung.
+- Releases enthalten zusätzlich das `.deb` als Asset.
+
+## v2.0.0 - 2026-08-02
+
+Vollständige Überarbeitung. Die Konfiguration liegt jetzt in `/etc/rsynbacktux/`
+statt fest im generierten Script – bestehende Installationen sollten den
+Installer erneut ausführen.
+
+### Behoben
+
+- **Ausschlüsse griffen nicht.** Alle Muster steckten in einem einzigen
+  `--exclude='{/dev/*,/proc/*,...}'`. rsync expandiert keine Klammer-Listen,
+  dadurch wurden `/dev`, `/proc`, `/sys`, `/tmp`, `/run`, `/mnt` und `/media`
+  vollständig mitgesichert. Die Muster stehen jetzt einzeln in
+  `/etc/rsynbacktux/excludes.list`.
+- **Endlosschleife bei `curl | bash`.** Bei einer Pipe belegt das Script selbst
+  die Standardeingabe; die Eingabeschleife lief unbegrenzt weiter. Eingaben
+  werden jetzt bevorzugt von `/dev/tty` gelesen, ansonsten bricht der Installer
+  nach drei Versuchen mit klarer Meldung ab.
+- **Passwort landete auf der NAS.** `/root/.rsync_pass` war von keinem Ausschluss
+  erfasst und wurde bei jedem Lauf mitgesichert – ebenso das Logfile.
+- **rsync-Exitcode 24** („vanished files", auf laufenden Systemen normal) wurde
+  durch `set -e` als Fehlschlag gewertet.
+- **Fehlender Schutz vor Parallelläufen.** Der Runner sperrt jetzt per `flock`.
+- Cron-Ausdrücke mit führender Null (`08:09`) werden nicht mehr als Oktalzahl
+  interpretiert.
+- Die Passwortdatei wird mit `install -m 600` angelegt, statt erst zu schreiben
+  und danach die Rechte zu setzen.
+
+### Neu
+
+- Konfiguration in `/etc/rsynbacktux/backup.conf`: Host, Modul, Benutzer,
+  Quellpfad, Bandbreitenlimit, Timeout und weitere Optionen ohne
+  Neuinstallation änderbar.
+- Zeitsteuerung über systemd-Timer (`Persistent=true`, `RandomizedDelaySec`),
+  Cron als automatischer Fallback; wählbar über `--scheduler`.
+- Nicht-interaktiver Modus (`--non-interactive`) mit `--host`, `--module`,
+  `--user`, `--subdir`, `--time`, `--oncalendar`, `--cron`, `--password-file`
+  und `RSYNBACKTUX_PASSWORD` für Massenrollouts.
+- `--help` und `--version`; unbekannte Optionen enden mit Exitcode 2 statt
+  stillschweigend ignoriert zu werden.
+- Deinstallation über `src/uninstall-syno-backup.sh`, optional mit `--purge`.
+- Logrotation über `/etc/logrotate.d/rsynbacktux` (wöchentlich, 8 Generationen).
+- Netzwerk-Mounts (NFS/CIFS/SSHFS) werden zur Laufzeit automatisch
+  ausgeschlossen, damit ein eingehängtes Share nicht in sich selbst landet.
+- Verbindungstest prüft zusätzlich den Schreibzugriff im Zielunterordner.
+- `--numeric-ids` für korrekte UID/GID-Zuordnung bei der Wiederherstellung,
+  `--timeout`/`--contimeout` gegen hängende Läufe.
+- Ausführliche Ausgabe geht ins Logfile, eine Kurzmeldung ins Journal bzw. bei
+  Cron nur im Fehlerfall in die Mail.
+- bats-Testsuite mit 49 Tests (`tests/`), die vollständig in ein temporäres
+  Verzeichnis installiert und ohne NAS auskommt.
+
+### Geändert
+
+- `ci.yml` bündelt Lint, Tests und Dry-Run; `shellcheck.yml` und `security.yml`
+  entfallen (widersprüchliche shellharden-Gates).
+- Das generierte Backup-Script wird in CI erzeugt und mitgelintet.
+- Der Changelog-Workflow überschreibt handgepflegte Abschnitte nicht mehr.
+- Die doppelte `scripts/VERSION` entfällt, `VERSION` ist die einzige Quelle und
+  wird in CI gegen `--version` geprüft.
+- Standardmäßig `--info=stats2` statt `-v`; Einzeldateien nur noch mit
+  `VERBOSE="true"`.
+
 ## v1.2.0 - 2026-03-27
 
 - fix: release.yml – contents: write für GitHub Release-Erstellung (236c6cd)

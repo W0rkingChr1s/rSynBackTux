@@ -1,0 +1,121 @@
+.TH RSYNBACKTUX\-SETUP 8 "2026" "rSynBackTux" "System Administration"
+.SH NAME
+rsynbacktux\-setup \- configure rSynBackTux backups to a Synology NAS
+.SH SYNOPSIS
+.B rsynbacktux\-setup
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B rsynbacktux\-setup
+writes the configuration for
+.BR rsynbacktux\-backup (8)
+and enables the schedule. Run it once after installing the package.
+.PP
+Without options it asks for the NAS host, the rsync module, the rsync user, the
+target subdirectory, the password and the time of the daily run. It then
+verifies that the NAS is reachable, that the credentials work and that the
+target directory is writable before anything is written to disk.
+.PP
+The following files are created:
+.TP
+.I /etc/rsynbacktux/backup.conf
+Configuration, read by every backup run. See
+.BR rsynbacktux.conf (5).
+.TP
+.I /root/.rsync_pass
+Password file for the rsync daemon, mode 0600.
+.TP
+.I /etc/systemd/system/rsynbacktux.timer.d/override.conf
+Schedule override for the timer shipped with the package.
+.PP
+The backup runner, the systemd units, the logrotate snippet and
+.I /etc/rsynbacktux/excludes.list
+belong to the package and are left alone. An existing exclude list is never
+overwritten.
+.SH OPTIONS
+.SS Connection
+.TP
+.BI \-\-host " HOST"
+Synology host name or IP address.
+.TP
+.BI \-\-module " NAME"
+rsync module on the NAS (default: NetBackup).
+.TP
+.BI \-\-user " NAME"
+rsync user (default: backup).
+.TP
+.BI \-\-subdir " NAME"
+Target subdirectory inside the module (default: short host name).
+.TP
+.BI \-\-password\-file " FILE"
+Read the rsync password from FILE instead of asking. Alternatively set the
+environment variable
+.BR RSYNBACKTUX_PASSWORD .
+.SS Backup
+.TP
+.BI \-\-source " PATH"
+Source directory (default: /).
+.TP
+.B \-\-one\-file\-system
+Do not cross file system boundaries (rsync \-x). Note that separate partitions
+such as /home or /var are then excluded.
+.SS Schedule
+.TP
+.BI \-\-scheduler " MODE"
+One of auto, systemd, cron, none (default: auto).
+.TP
+.BI \-\-time " HH:MM"
+Start time of the daily run (default: 03:00).
+.TP
+.BI \-\-oncalendar " EXPRESSION"
+systemd OnCalendar expression, overrides \-\-time.
+.TP
+.BI \-\-cron " EXPRESSION"
+cron expression, overrides \-\-time.
+.SS Behaviour
+.TP
+.B \-\-non\-interactive
+Never ask; missing mandatory values are an error. Intended for Ansible,
+cloud\-init and mass rollouts.
+.TP
+.B \-\-run\-now ", " \-\-no\-run\-now
+Run (or do not run) a backup right after the setup.
+.TP
+.B \-\-skip\-connection\-test
+Skip the connection and write test.
+.TP
+.B \-\-dry\-run
+Show what would happen without changing anything.
+.TP
+.B \-\-help ", " \-\-version
+Show the built\-in help or the version.
+.SH ENVIRONMENT
+.TP
+.B RSYNBACKTUX_PASSWORD
+Password for the rsync user; avoids the interactive prompt.
+.TP
+.B RSYNBACKTUX_PREFIX
+Prefix for all target paths. Used by the test suite only.
+.SH EXIT STATUS
+0 on success, 2 for an unknown option, 1 for any other error.
+.SH EXAMPLES
+Unattended setup:
+.PP
+.nf
+.RS
+RSYNBACKTUX_PASSWORD='secret' rsynbacktux\-setup \-\-non\-interactive \\
+    \-\-host 192.168.178.5 \-\-module NetBackup \-\-user backup \-\-time 02:30
+.RE
+.fi
+.SH FILES
+.I /etc/rsynbacktux/backup.conf
+.br
+.I /etc/rsynbacktux/excludes.list
+.br
+.I /root/.rsync_pass
+.SH SEE ALSO
+.BR rsynbacktux\-backup (8),
+.BR rsynbacktux.conf (5),
+.BR rsync (1),
+.BR systemd.timer (5)
+.SH AUTHOR
+https://github.com/W0rkingChr1s/rSynBackTux

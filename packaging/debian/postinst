@@ -1,0 +1,40 @@
+#!/bin/sh
+# rSynBackTux – postinst
+#
+# Der Timer wird bewusst NICHT automatisch aktiviert: ohne Konfiguration
+# (NAS-Host, Modul, Passwort) hätte ein Lauf keine Chance. Die Aktivierung
+# übernimmt 'rsynbacktux-setup'.
+set -e
+
+systemd_available() {
+    [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1
+}
+
+case "$1" in
+    configure)
+        if systemd_available; then
+            systemctl daemon-reload >/dev/null 2>&1 || true
+            # Beim Upgrade eine bereits eingerichtete Zeitsteuerung neu einlesen
+            if systemctl is-enabled rsynbacktux.timer >/dev/null 2>&1; then
+                systemctl restart rsynbacktux.timer >/dev/null 2>&1 || true
+            fi
+        fi
+
+        if [ ! -e /etc/rsynbacktux/backup.conf ]; then
+            echo ""
+            echo "rSynBackTux ist installiert, aber noch nicht eingerichtet."
+            echo "Einrichtung starten mit:  sudo rsynbacktux-setup"
+            echo ""
+        fi
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst mit unbekanntem Argument aufgerufen: $1" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

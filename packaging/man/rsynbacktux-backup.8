@@ -1,0 +1,80 @@
+.TH RSYNBACKTUX\-BACKUP 8 "2026" "rSynBackTux" "System Administration"
+.SH NAME
+rsynbacktux\-backup \- run an rsync backup to a Synology NAS
+.SH SYNOPSIS
+.B rsynbacktux\-backup
+.SH DESCRIPTION
+.B rsynbacktux\-backup
+copies the configured source directory to the rsync module of a Synology NAS.
+It takes no arguments; every setting comes from
+.I /etc/rsynbacktux/backup.conf
+(see
+.BR rsynbacktux.conf (5))
+and is picked up on the next run, so no reinstallation is needed after a
+configuration change.
+.PP
+The transfer is incremental. Patterns from
+.I /etc/rsynbacktux/excludes.list
+are excluded, and network mounts (NFS, CIFS, SSHFS, GlusterFS, Ceph) are
+detected at run time and excluded as well, so a mounted share cannot end up
+inside its own backup.
+.PP
+Only one run at a time is allowed. The lock is held on
+.I /var/lock/rsynbacktux.lock
+via
+.BR flock (1);
+a second run exits with status 0 without doing anything.
+.PP
+The detailed transcript goes to
+.IR /var/log/backup\-to\-synology.log ,
+rotated weekly with eight generations. Standard output only carries a one line
+summary, which ends up in the systemd journal or, under cron, in a mail on
+failure.
+.SH SCHEDULE
+Normally the run is started by
+.BR systemd.timer (5):
+.PP
+.nf
+.RS
+systemctl list\-timers rsynbacktux.timer
+systemctl start rsynbacktux.service
+journalctl \-u rsynbacktux.service \-\-since today
+.RE
+.fi
+.PP
+The time is set by
+.BR rsynbacktux\-setup (8)
+in
+.IR /etc/systemd/system/rsynbacktux.timer.d/override.conf .
+On systems without systemd a cron job is used instead.
+.SH EXIT STATUS
+.TP
+.B 0
+All files transferred. rsync exit code 24 (files vanished during the run,
+normal on a live system) is also reported as success.
+.TP
+.B 23
+Not all files could be transferred. Treated as a warning when
+.B TOLERATE_PARTIAL
+is set to true.
+.TP
+.B other
+rsync error; the original rsync exit code is passed through.
+.SH ENVIRONMENT
+.TP
+.B RSYNBACKTUX_CONF
+Alternative path to the configuration file.
+.SH FILES
+.I /etc/rsynbacktux/backup.conf
+.br
+.I /etc/rsynbacktux/excludes.list
+.br
+.I /root/.rsync_pass
+.br
+.I /var/log/backup\-to\-synology.log
+.SH SEE ALSO
+.BR rsynbacktux\-setup (8),
+.BR rsynbacktux.conf (5),
+.BR rsync (1)
+.SH AUTHOR
+https://github.com/W0rkingChr1s/rSynBackTux

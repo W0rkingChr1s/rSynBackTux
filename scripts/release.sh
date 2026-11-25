@@ -1,63 +1,72 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
+#
+# rSynBackTux – Version anheben und ausliefern.
+#
+#   scripts/release.sh <version>
+#
+# Das Script setzt nur die Versionsnummer und schiebt sie nach main. Alles
+# Weitere übernimmt GitHub Actions: Tag anlegen, Paket bauen, Release samt
+# Assets erzeugen und das APT-Repository aktualisieren.
+
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+die() { printf 'FEHLER: %s\n' "$*" >&2; exit 1; }
+
 if [[ $# -ne 1 ]]; then
-  echo "Usage: $0 <version>"
-  echo "Beispiel: $0 1.1.0"
+  echo "Verwendung: $0 <version>"
+  echo "Beispiel:   $0 2.3.0"
   exit 1
 fi
 
 VERSION="$1"
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
+  die "Ungültige Versionsnummer: ${VERSION} (erwartet X.Y.Z, z. B. 2.3.0)"
 
-# einfache Versionsprüfung: X.Y.Z
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Ungültige Versionsnummer: $VERSION (erwartet: X.Y.Z, z.B. 1.1.0)"
-  exit 1
-fi
-
-# aktueller Branch
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-if [[ "$BRANCH" != "main" ]]; then
-  echo "Bitte auf 'main' ausführen (aktueller Branch: $BRANCH)"
-  exit 1
+[[ "$BRANCH" == "main" ]] || die "Bitte auf 'main' ausführen (aktuell: ${BRANCH})"
+
+# Vollständige Refspecs: Im Repository liegt ein Tag namens 'main'. Ein
+# schlichtes 'git pull origin main' ist damit mehrdeutig und kann auf dem Tag
+# statt auf dem Branch landen.
+echo "Hole den neuesten Stand von origin/main ..."
+git fetch origin refs/heads/main:refs/remotes/origin/main
+git merge --ff-only origin/main
+
+git diff-index --quiet HEAD -- ||
+  die "Arbeitsverzeichnis ist nicht sauber – bitte erst committen oder verwerfen."
+
+TAG="v${VERSION}"
+if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null 2>&1; then
+  die "Tag ${TAG} existiert bereits."
 fi
 
-echo "Starte Release für Version $VERSION auf Branch $BRANCH ..."
-echo
-
-# 1) Sicherstellen, dass wir auf dem aktuellen Stand sind
-echo "Hole neuesten Stand von origin/$BRANCH ..."
-git fetch origin
-git pull --rebase origin "$BRANCH"
-
-# 2) Prüfen, dass keine getrackten Änderungen offen sind
-if ! git diff-index --quiet HEAD --; then
-  echo "Arbeitsverzeichnis ist nicht sauber (Änderungen an getrackten Dateien vorhanden)."
-  echo "Bitte Änderungen erst committen oder verwerfen:"
-  git status
-  exit 1
-fi
-
-# 3) VERSION-Datei setzen
+echo "Setze Version auf ${VERSION} ..."
 echo "$VERSION" > VERSION
 
-# 4) Commit anlegen
-git add VERSION
-git commit -m "Release $VERSION"
+# Die Scripte tragen die Version selbst; CI bricht ab, wenn sie abweicht.
+sed -i -E "s/^RSYNBACKTUX_VERSION=\".*\"\$/RSYNBACKTUX_VERSION=\"${VERSION}\"/" \
+  src/install-syno-backup.sh src/uninstall-syno-backup.sh
 
-# 5) main pushen
-git push origin "$BRANCH"
+actual="$(src/install-syno-backup.sh --version)"
+[[ "$actual" == "rSynBackTux ${VERSION}" ]] ||
+  die "Version im Installer stimmt nicht: ${actual}"
 
-# 6) Tag anlegen und pushen
-TAG="v$VERSION"
-git tag "$TAG"
-git push origin "$TAG"
+git add VERSION src/install-syno-backup.sh src/uninstall-syno-backup.sh
+git commit -m "chore: Version ${VERSION}"
+git push origin "HEAD:refs/heads/main"
 
-echo
-echo "Release $VERSION abgeschlossen:"
-echo "- VERSION-Datei aktualisiert und auf $BRANCH gepusht"
-echo "- Tag $TAG erstellt und gepusht"
-echo
-echo "GitHub Actions bauen jetzt automatisch:"
-echo "- Changelog (auf main)"
-echo "- Release inkl. Assets (für Tag $TAG)"
+cat <<INFO
+
+Version ${VERSION} ist auf main.
+
+GitHub Actions übernimmt jetzt:
+  - Tag ${TAG} anlegen
+  - Paket bauen und Release mit Assets erzeugen
+  - APT-Repository aktualisieren
+
+Fortschritt: https://github.com/W0rkingChr1s/rSynBackTux/actions
+INFO

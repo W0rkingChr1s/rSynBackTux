@@ -39,6 +39,12 @@ jobs:
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          # Dependabot PRs are bot-authored by default action policy, so the
+          # action refuses to run for them unless explicitly allow-listed.
+          # Dependabot's PR content is machine-generated from the dependency
+          # manifest and upstream release notes, not attacker-controlled
+          # prose, so allowing it here doesn't reopen the untrusted-actor risk
+          # this policy guards against.
+          allowed_bots: 'dependabot[bot]'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-

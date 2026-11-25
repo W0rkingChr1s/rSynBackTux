@@ -24,6 +24,7 @@
 # Ignore binary diffs for compressed files
 *.gz binary
 *.zip binary
+*.deb binary
 *.tar binary
 *.tgz binary
 

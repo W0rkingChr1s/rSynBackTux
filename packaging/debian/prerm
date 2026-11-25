@@ -1,0 +1,30 @@
+#!/bin/sh
+# rSynBackTux – prerm
+set -e
+
+RUNNER=/usr/sbin/rsynbacktux-backup
+
+case "$1" in
+    remove|deconfigure)
+        if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+            systemctl disable --now rsynbacktux.timer >/dev/null 2>&1 || true
+            systemctl stop rsynbacktux.service >/dev/null 2>&1 || true
+        fi
+
+        # Zeitsteuerung über cron: eigenen Eintrag entfernen, fremde behalten
+        if command -v crontab >/dev/null 2>&1 &&
+           crontab -l 2>/dev/null | grep -Fq "$RUNNER"; then
+            crontab -l 2>/dev/null | grep -Fv "$RUNNER" | crontab - || true
+        fi
+        ;;
+
+    upgrade|failed-upgrade)
+        ;;
+
+    *)
+        echo "prerm mit unbekanntem Argument aufgerufen: $1" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

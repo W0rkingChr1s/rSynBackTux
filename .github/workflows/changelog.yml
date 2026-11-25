@@ -34,6 +34,13 @@ jobs:
           TAG_HEADER="v${VERSION}"
           echo "Current VERSION: ${VERSION} (Header: ${TAG_HEADER})"
 
+          # Handgepflegte Abschnitte nicht überschreiben: Existiert bereits ein
+          # Block für die aktuelle Version, bleibt das CHANGELOG unverändert.
+          if [ -f CHANGELOG.md ] && grep -q "^## ${TAG_HEADER} " CHANGELOG.md; then
+            echo "Abschnitt für ${TAG_HEADER} existiert bereits – nichts zu tun."
+            exit 0
+          fi
+
           # Letztes Tag ermitteln (letztes Release)
           LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
 
@@ -58,9 +65,14 @@ jobs:
           {
             echo "## ${TAG_HEADER} - ${DATE}"
             echo
-            if [ -n "${COMMITS}" ]; then
-              echo "${COMMITS}" | sed 's/^/- /'
-            fi
+
+            # Commits auflisten, dabei Changelog-/Merge-Spam rausfiltern
+            git log --pretty='%s (%h)' ${RANGE} \
+              | grep -v -E '^Update CHANGELOG\.md' \
+              | grep -v -E '^Merge branch ' \
+              | sed 's/^/- /' \
+              || true
+
             echo
           } > "${SECTION_FILE}"
 
@@ -114,7 +126,7 @@ jobs:
           } > CHANGELOG.md
 
       - name: Commit CHANGELOG.md
-        uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403 # v5.2.0
+        uses: stefanzweifel/git-auto-commit-action@d0b01107b5db882071f96de5dd4b54961ea93f4c # v7.2.1
         with:
           commit_message: "Update CHANGELOG.md for v${{ github.sha }}"
           file_pattern: CHANGELOG.md
