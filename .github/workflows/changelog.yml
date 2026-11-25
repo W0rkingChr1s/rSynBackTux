@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0  # komplette History für git log
 
@@ -126,7 +126,7 @@ jobs:
           } > CHANGELOG.md
 
       - name: Commit CHANGELOG.md
-        uses: stefanzweifel/git-auto-commit-action@v7
+        uses: stefanzweifel/git-auto-commit-action@d0b01107b5db882071f96de5dd4b54961ea93f4c # v7.2.1
         with:
           commit_message: "Update CHANGELOG.md for v${{ github.sha }}"
           file_pattern: CHANGELOG.md
