@@ -84,7 +84,8 @@ jobs:
 
   package:
     name: Debian-Paket bauen und installieren
-    runs-on: ubuntu-latest
+    # Ubuntu 24.04 ships rsync 3.2.7; the package requires rsync >= 3.4.0.
+    runs-on: ubuntu-26.04
     needs: lint
 
     steps:
@@ -168,7 +169,7 @@ jobs:
   # fällt es hier auf – und nicht erst beim Release.
   apt-repo:
     name: APT-Repository probeweise bauen
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: lint
 
     env:
